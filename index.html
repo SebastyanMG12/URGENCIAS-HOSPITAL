@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>E.S.E Hospital El Salvador de Ubaté - Pre Registro Urgencias</title>
+    <link rel="stylesheet" href="style.css" />
+
+    <!-- Librería para generar códigos QR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+</head>
+
+<body>
+    <header class="topbar">
+        <button class="drawer-toggle" id="btn-open-drawer" aria-label="Abrir menú">&#9776;</button>
+        <h1 class="hospital-name">E.S.E HOSPITAL EL SALVADOR DE UBATÉ</h1>
+    </header>
+
+    <!-- Overlay oscuro detrás del drawer -->
+    <div class="drawer-backdrop hidden" id="drawer-backdrop"></div>
+
+    <!-- Drawer lateral izquierdo -->
+    <nav class="drawer hidden" id="drawer-menu">
+        <div class="drawer-header">
+            <span class="drawer-title">Accesos Rápidos</span>
+            <button class="drawer-close" id="btn-close-drawer" aria-label="Cerrar menú">&times;</button>
+        </div>
+        <div class="drawer-body">
+            <div class="drawer-item">
+                <h3>Personal del hospital</h3>
+                <p>Médicos, enfermería y administración.</p>
+                <button class="btn primary" id="open-login-staff">Ir al Login</button>
+            </div>
+            <div class="drawer-item">
+                <h3>Acompañante</h3>
+                <p>Consultar por código público del paciente.</p>
+                <button class="btn" id="open-companion">Consultar</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container">
+            <section class="card public-register">
+                <h2>PRE-REGISTRO PACIENTE</h2>
+
+                <form id="form-register">
+                    <!-- Fila 1: Nombre y documento -->
+                    <div class="form-row">
+                        <input type="text" id="p_name" placeholder="Nombre completo *" required />
+                        <input type="text" id="p_doc" placeholder="Documento de identidad (opcional)" />
+                    </div>
+
+                    <!-- Fila 2: Teléfono y motivo -->
+                    <div class="form-row">
+                        <input type="tel" id="p_phone" placeholder="Teléfono de contacto" />
+                        <input type="text" id="p_reason" placeholder="Motivo de urgencia / síntoma principal *"
+                            required />
+                    </div>
+
+                    <!-- Fila 3: Tipo de sangre y nivel de triage -->
+                    <div class="form-row">
+                        <select id="p_blood_type">
+                            <option value="">Tipo de sangre (opcional)</option>
+                            <option value="A+">A+</option>
+                            <option value="A-">A-</option>
+                            <option value="B+">B+</option>
+                            <option value="B-">B-</option>
+                            <option value="AB+">AB+</option>
+                            <option value="AB-">AB-</option>
+                            <option value="O+">O+</option>
+                            <option value="O-">O-</option>
+                        </select>
+                        <select id="p_triage">
+                            <option value="">Nivel de urgencia (paciente)</option>
+                            <option value="rojo">🔴 Rojo — Crítico / Inmediato</option>
+                            <option value="naranja">🟠 Naranja — Muy urgente</option>
+                            <option value="amarillo">🟡 Amarillo — Urgente</option>
+                            <option value="verde">🟢 Verde — Poco urgente</option>
+                        </select>
+                    </div>
+
+                    <!-- Fila 4: Alergias -->
+                    <div class="form-row">
+                        <input type="text" id="p_allergies"
+                            placeholder="Alergias a medicamentos (ej: Penicilina, Ibuprofeno)" />
+                    </div>
+
+                    <!-- Fila 5: Notas adicionales -->
+                    <div class="form-row">
+                        <textarea id="p_notes"
+                            placeholder="Notas adicionales (condiciones previas, medicamentos actuales...)"
+                            rows="2"></textarea>
+                    </div>
+                    <h2>DATOS DEL ACOMPAÑANTE (OPCIONAL)</h2>
+                    <!-- Fila 6: Datos del acompañante -->
+                    <div class="form-row">
+                        <input type="text" id="p_comp_name" placeholder="Nombre del acompañante (opcional)" />
+                        <input type="tel" id="p_comp_phone" placeholder="Teléfono del acompañante" />
+                    </div>
+                    <div class="form-row">
+                        <select id="p_comp_relation">
+                            <option value="">Parentesco / relación del acompañante</option>
+                            <option value="Padre/Madre">Padre / Madre</option>
+                            <option value="Hijo/Hija">Hijo / Hija</option>
+                            <option value="Cónyuge">Cónyuge / Pareja</option>
+                            <option value="Hermano/Hermana">Hermano / Hermana</option>
+                            <option value="Amigo/Amiga">Amigo / Amiga</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+
+                    <!-- Fila 7: Consentimiento de datos — OBLIGATORIO por Ley 1581 de 2012 -->
+                    <div class="form-row" style="align-items:flex-start;gap:10px">
+                        <label style="display:flex;gap:10px;align-items:flex-start;font-size:13px;
+                        line-height:1.4;cursor:pointer">
+                            <input type="checkbox" id="p_consent" required
+                                style="margin-top:2px;flex-shrink:0;width:16px;height:16px;cursor:pointer" />
+                            <span>
+                                <em>Autorizo el tratamiento de mis datos personales con la finalidad exclusiva
+                                    de recibir atención médica en urgencias, conforme a la
+                                    <strong>Ley 1581 de 2012</strong> de protección de datos personales de Colombia
+                                    y la política de privacidad del Hospital El Salvador de Ubaté E.S.E.
+                                    <strong>CAMPO OBLIGATORIO</strong>.</em>
+                            </span>
+                        </label>
+                    </div>
+
+                    <!-- Fila 8: Acciones -->
+                    <div class="form-row actions">
+                        <button class="btn primary" type="submit">Enviar pre-registro</button>
+                        <button class="btn ghost" type="button" id="btn-clear">Limpiar</button>
+                    </div>
+                </form>
+
+                <div id="register-result" class="muted" style="display:none;"></div>
+                <small class="muted">Al registrarte se genera un código público para que tus acompañantes consulten el
+                    estado.</small>
+            </section>
+
+
+            <!-- MODALES / PANELES -->
+            <!-- Login Modal -->
+            <div class="overlay hidden" id="modal-login">
+                <div class="modal">
+                    <h3 id="login-title">Login</h3>
+                    <form id="form-login">
+                        <input type="text" id="login-username" placeholder="Usuario" required />
+                        <input type="password" id="login-password" placeholder="Contraseña" required />
+                        <div class="row">
+                            <select id="login-role">
+                                <option value="medico">Personal Médico</option>
+                                <option value="admin">Administración</option>
+                            </select>
+                            <button class="btn primary" type="submit">Ingresar</button>
+                        </div>
+                    </form>
+                    <hr />
+                    <div>
+                        <h4>Crear usuario local</h4>
+                        <form id="form-create-user">
+                            <input type="text" id="new-username" placeholder="Usuario" required />
+                            <input type="password" id="new-password" placeholder="Contraseña" required />
+                            <select id="new-role">
+                                <option value="medico">Personal Médico</option>
+                                <option value="admin">Administración</option>
+                            </select>
+                            <div class="row">
+                                <button class="btn" id="btn-create-user" type="submit">Crear usuario</button>
+                                <button class="btn ghost" id="btn-cancel-login" type="button">Cerrar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Registration success "instagram style" modal -->
+            <div class="overlay hidden" id="modal-registered">
+                <div class="ig-modal">
+                    <button class="ig-close" id="btn-close-registered" aria-label="Cerrar">&times;</button>
+                    <div class="ig-content">
+                        <h3>Registro exitoso</h3>
+                        <p class="ig-sub">Tu código público es:</p>
+
+                        <div class="ig-code" id="reg-code">--</div>
+                        <div id="qr-code-container" style="margin:12px auto;display:flex;justify-content:center;"></div>
+                        <p class="muted">Guarda y comparte este código solo con tus acompañantes autorizados.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- General large scrollable modal used for staff actions and for companion view -->
+            <div class="overlay hidden" id="modal-view">
+                <div class="ig-modal-large" role="dialog" aria-modal="true">
+                    <button class="ig-close" id="btn-close-view" aria-label="Cerrar">&times;</button>
+                    <div class="ig-content-large" id="modal-view-content">
+                        <!-- Contenido dinámico -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Staff Panel -->
+            <div class="overlay hidden" id="panel-staff">
+                <div class="panel">
+                    <header class="panel-header">
+                        <h3 id="panel-title">Panel</h3>
+                        <div class="panel-actions">
+                            <button class="btn green" id="btn-view-active">Activos</button>
+                            <button class="btn red" id="btn-view-egresados">Egresados</button>
+                            <button class="btn ghost" id="btn-logout">Cerrar sesión</button>
+                        </div>
+                    </header>
+
+                    <div class="panel-body">
+                        <aside class="left">
+                            <div class="search">
+                                <input id="search-patient" placeholder="Buscar por nombre / internalId / publicCode" />
+                                <button class="btn" id="btn-search">Buscar</button>
+                            </div>
+                            <div class="list" id="patient-list"></div>
+                        </aside>
+
+                        <section class="right" id="patient-detail">
+                            <div class="muted">Selecciona un paciente para ver detalles</div>
+                        </section>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Companion (uses modal-view) -->
+            <div class="overlay hidden" id="panel-companion">
+                <div class="modal">
+                    <h3>Consulta Acompañante</h3>
+                    <form id="form-companion">
+                        <input type="text" id="comp-code" placeholder="Código público del paciente" required />
+                        <div class="row">
+                            <button class="btn primary" type="submit">Consultar</button>
+                            <button class="btn ghost" id="btn-close-companion" type="button">Cerrar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <script src="js/utils.js" defer></script>
+            <script src="js/storage.js" defer></script>
+            <script src="js/audit.js" defer></script>
+            <script src="js/auth.js" defer></script>
+            <script src="js/patients.js" defer></script>
+            <script src="js/rooms.js" defer></script>
+            <script src="js/doctors.js" defer></script>
+            <script src="js/procedures.js" defer></script>
+            <script src="js/modals.js" defer></script>
+            <script src="js/companion.js" defer></script>
+            <script src="js/staff-panel.js" defer></script>
+            <script src="js/main.js" defer></script>
+
+</body>
+
+</html>
