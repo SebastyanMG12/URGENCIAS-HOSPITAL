@@ -33,7 +33,6 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
     gap: 12px;
     padding: 14px 18px;
     border-bottom: 1px solid rgba(0, 0, 0, 0.04);
@@ -59,6 +58,54 @@ body {
     grid-template-columns: 1fr;
     gap: 18px;
     padding: 0 18px;
+}
+
+/* ===== Vistas de acceso y consulta ===== */
+.page-card {
+    max-width: 560px;
+    margin: 40px auto;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+}
+
+.page-box {
+    padding: 20px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #ffffff, #f8fbfd);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.page-box h3 {
+    margin: 0;
+    color: var(--primary-2);
+}
+
+.page-box p {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.page-message {
+    margin-top: 12px;
+    min-height: 20px;
+    font-weight: 500;
+}
+
+.page-footer-note {
+    margin-top: 6px;
+    line-height: 1.5;
+}
+
+.page-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
 }
 
 /* Cards */
@@ -180,6 +227,13 @@ body {
 input::placeholder,
 textarea::placeholder {
     color: #5d5d5e
+}
+
+a.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
 }
 
 .btn {
@@ -643,10 +697,6 @@ textarea::placeholder {
         padding: 12px
     }
 
-    .left {
-        display: none
-    }
-
     .modal {
         width: 100%
     }
@@ -659,6 +709,71 @@ textarea::placeholder {
     .ig-modal-large {
         width: 100%;
         padding: 12px
+    }
+
+    /* Panel staff: apilar columnas en móvil */
+    .panel {
+        height: auto;
+        min-height: 90vh;
+    }
+
+    .panel-body {
+        flex-direction: column;
+    }
+
+    .left {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        max-height: 280px;
+    }
+
+    .right {
+        padding: 12px;
+    }
+
+    /* Panel header: apilar botones si no caben */
+    .panel-header {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .panel-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    /* Formulario pre-registro: una columna en móvil */
+    .public-register .form-row {
+        flex-direction: column;
+    }
+
+    /* detail-grid: una columna en móvil */
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* page-card: sin margen lateral excesivo */
+    .page-card {
+        margin: 16px auto;
+        padding: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .hospital-name {
+        font-size: 13px;
+    }
+
+    .btn {
+        padding: 8px 10px;
+        font-size: 13px;
+    }
+
+    .ig-modal-large {
+        padding: 10px;
+        border-radius: 12px;
     }
 }
 

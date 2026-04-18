@@ -23,6 +23,17 @@
     const btnViewEgresados = document.getElementById('btn-view-egresados');
     const btnLogout = document.getElementById('btn-logout');
 
+    if (btnLogout) {
+        btnLogout.addEventListener('click', async () => {
+            if (window.eseb && window.eseb.auth && typeof window.eseb.auth.logout === 'function') {
+                await window.eseb.auth.logout();
+            } else {
+                sessionStorage.removeItem('eseb_staff_session');
+                window.location.href = 'login.html';
+            }
+        });
+    }
+
     let currentListFilter = 'all'; // 'all' | 'active' | 'discharged'
 
     let currentSelectedPatientId = null;
@@ -173,12 +184,28 @@
             html += `<div class="detail-card" style="margin-top:12px;background:linear-gradient(180deg,#fff8f8,#fff);border:1px solid rgba(239,68,68,0.06)"><strong>Paciente egresado</strong><div class="muted">No es posible modificar información para este paciente.</div></div>`;
         }
 
+        // Actions (existing)
+        html += `<div style="margin-top:10px" class="detail-card">
+        <strong>Acciones</strong>
+        <div style="margin-top:8px" class="row">
+          <button class="btn primary" id="btn-open-confirm-arrival" ${arrivedDisabledAttr}>${p.arrived ? 'Llegada confirmada' : 'Confirmar llegada'}</button>
+          <button class="btn primary" id="btn-open-assign-room" ${disableForMed ? 'disabled' : ''}>Asignar Hab/Cam</button>
+          <button class="btn primary" id="btn-open-assign-doctor" ${disableForMed ? 'disabled' : ''}>Asignar personal</button>
+          <button class="btn primary" id="btn-open-set-admit" ${admitDisabledAttr}>${p.admittedAt ? 'Ingreso marcado' : 'Marcar ingreso'}</button>
+          <button class="btn primary" id="btn-open-set-discharge" ${dischargeDisabledAttr}>${p.dischargedAt ? 'Egreso marcado' : 'Marcar egreso'}</button>
+        </div>
+        <div style="margin-top:10px">
+          <label style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><span>Compartir historial de procedimientos con acompañante</span><input type="checkbox" id="chk-share-proc" ${p.shareWithCompanion ? 'checked' : ''} ${disableForMed ? 'disabled' : ''}/></label>
+        </div>
+    </div>`;
+
         // Companion (optional) - editable inputs for staff
         html += `<div style="margin-top:12px" class="detail-card">
       <h4>Información del acompañante (opcional)</h4>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-        <div><label>Nombre</label><input id="inp-comp-name" class="ig-input" placeholder="Nombre acompañante" value="${utils ? utils.escapeHtml(p.companionName || '') : (p.companionName || '')}" ${saveCompanionDisabledAttr}></div>
-        <div><label>Teléfono</label><input id="inp-comp-phone" class="ig-input" placeholder="Teléfono acompañante" value="${utils ? utils.escapeHtml(p.companionPhone || '') : (p.companionPhone || '')}" ${saveCompanionDisabledAttr}></div>
+        <div><label>Nombre</label><input id="inp-comp-name" class="ig-input" placeholder="Nombre acompañante" autocomplete = "off" value="${utils ? utils.escapeHtml(p.companionName || '') : (p.companionName || '')}" ${saveCompanionDisabledAttr}></div>
+        <div><label>Teléfono</label><input id="inp-comp-phone" class="ig-input" placeholder="Teléfono acompañante" autocomplete = "off" value="${utils ? utils.escapeHtml(p.companionPhone || '') : (p.companionPhone || '')}" ${saveCompanionDisabledAttr}></div>
         <div style="grid-column:1/3"><label>Parentesco</label><select id="inp-comp-rel" class="ig-input" ${saveCompanionDisabledAttr}>
   <option value="">Seleccionar parentesco</option>
   <option value="Padre/Madre" ${(p.companionRelation === 'Padre/Madre') ? 'selected' : ''}>Padre / Madre</option>
@@ -192,29 +219,19 @@
       <div style="margin-top:8px"><button class="btn primary" id="btn-save-companion" ${saveCompanionDisabledAttr}>Guardar acompañante</button></div>
     </div>`;
 
-        // Actions (existing)
-        html += `<div style="margin-top:10px" class="detail-card">
-        <strong>Acciones</strong>
-        <div style="margin-top:8px" class="row">
-          <button class="btn primary" id="btn-open-confirm-arrival" ${arrivedDisabledAttr}>${p.arrived ? 'Llegada confirmada' : 'Confirmar llegada'}</button>
-          <button class="btn" id="btn-open-assign-room" ${disableForMed ? 'disabled' : ''}>Asignar Hab/Cam</button>
-          <button class="btn" id="btn-open-assign-doctor" ${disableForMed ? 'disabled' : ''}>Asignar personal</button>
-          <button class="btn ghost" id="btn-open-set-admit" ${admitDisabledAttr}>${p.admittedAt ? 'Ingreso marcado' : 'Marcar ingreso'}</button>
-          <button class="btn ghost" id="btn-open-set-discharge" ${dischargeDisabledAttr}>${p.dischargedAt ? 'Egreso marcado' : 'Marcar egreso'}</button>
-        </div>
-        <div style="margin-top:10px">
-          <label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="chk-share-proc" ${p.shareWithCompanion ? 'checked' : ''} ${disableForMed ? 'disabled' : ''}/> Compartir historial de procedimientos con acompañante</label>
-        </div>
-    </div>`;
-
         // IMPORTANT: Agregar procedimiento siempre visible para personal autorizado (medico/admin)
         html += `<hr />
       <div style="margin-top:10px" class="detail-card">
         <strong>Agregar procedimiento / nota de atención</strong>
         <div style="margin-top:8px">
           <!-- Inputs siempre visibles para personal autorizado -->
-          <input id="inp-proc-desc" placeholder="Descripción del procedimiento / orden" ${addProcDisabledAttr}/>
-          <input id="inp-proc-by" placeholder="Realizado por (nombre)" ${addProcDisabledAttr}/>
+          <input id="inp-proc-desc" placeholder="Descripción del procedimiento / orden" autocomplete="off" ${addProcDisabledAttr}/>
+          <select id="inp-proc-by" class="ig-input" style="margin-top:8px" ${addProcDisabledAttr}>
+            <option value="">¿Quien atendio?</option>
+            ${(doctorsApi && doctorsApi.getDoctors ? doctorsApi.getDoctors() : []).map(d =>
+            `<option value="${utils ? utils.escapeHtml(d.name) : d.name}">${utils ? utils.escapeHtml(d.name) : d.name}</option>`
+        ).join('')}
+          </select>
           <div style="margin-top:8px" class="row">
             <button class="btn primary" id="btn-add-proc" ${addProcDisabledAttr}>Agregar</button>
             <small class="small-muted" style="align-self:center">* No podrás agregar si faltan campos obligatorios del paciente</small>
@@ -244,8 +261,7 @@
       <h4>Diagnóstico final</h4>
       <div>
         <textarea id="inp-final-dx" class="ig-input" rows="3" placeholder="Escribe el diagnóstico final..." ${saveDxDisabledAttr}>${utils ? utils.escapeHtml(p.finalDiagnosis || '') : (p.finalDiagnosis || '')}</textarea>
-        <label style="display:flex;align-items:center;gap:8px;margin-top:8px"><input type="checkbox" id="chk-share-dx" ${p.shareDiagnosis ? 'checked' : ''} ${disableForMed ? 'disabled' : ''}/> Compartir diagnóstico con acompañante</label>
-        <div style="margin-top:8px"><button class="btn primary" id="btn-save-dx" ${saveDxDisabledAttr}>Guardar diagnóstico</button></div>
+        <label style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px"><span>Compartir diagnóstico con acompañante</span><input type="checkbox" id="chk-share-dx" ${p.shareDiagnosis ? 'checked' : ''} ${disableForMed ? 'disabled' : ''}/></label>        <div style="margin-top:8px"><button class="btn primary" id="btn-save-dx" ${saveDxDisabledAttr}>Guardar diagnóstico</button></div>
       </div>
     </div>`;
 
@@ -388,7 +404,7 @@
                 const descEl = document.getElementById('inp-proc-desc');
                 const byEl = document.getElementById('inp-proc-by');
                 const desc = descEl ? descEl.value.trim() : '';
-                const by = byEl ? byEl.value.trim() : (auth && auth.currentSession ? (auth.currentSession().username || 'staff') : 'staff');
+                const by = (byEl && byEl.value) ? byEl.value : (auth && auth.currentSession ? (auth.currentSession().username || 'staff') : 'staff');
 
                 if (!desc) return alert('Describe el procedimiento');
 
@@ -441,32 +457,14 @@
        --------------------------- */
     function openArrivalModal(patientId) {
         const p = (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === patientId) : null);
-        // guard: if discharged and user is medico block
         if (p && p.dischargedAt && auth && auth.currentSession && auth.currentSession().role === 'medico') {
             showNotEditableForDischarged();
             return;
         }
-
-        const html = `<div class="ig-content-large">
-      <h3>Confirmar llegada - ${utils ? utils.escapeHtml(p ? p.name : '') : ''}</h3>
-      <p class="muted">Al confirmar llegada se registra la hora de llegada del paciente.</p>
-      <div style="margin-top:12px">
-        <button class="btn primary" id="btn-confirm-arrival-ok">Confirmar llegada</button>
-        <button class="btn ghost" id="btn-cancel-arrival">Cerrar</button>
-      </div>
-    </div>`;
-        if (modals && modals.openModalLarge) modals.openModalLarge(html);
-        setTimeout(() => {
-            const ok = document.getElementById('btn-confirm-arrival-ok');
-            const cancel = document.getElementById('btn-cancel-arrival');
-            if (ok) ok.addEventListener('click', () => {
-                if (patientsApi && patientsApi.updatePatient) patientsApi.updatePatient(patientId, { arrived: true, arrivedAt: utils.now() }, { action: 'confirm_arrival' });
-                renderPatientList(searchInput ? searchInput.value.trim() : '');
-                showPatientDetail(patientId);
-                if (modals && modals.closeModalLarge) modals.closeModalLarge();
-            });
-            if (cancel) cancel.addEventListener('click', () => { if (modals && modals.closeModalLarge) modals.closeModalLarge(); });
-        }, 10);
+        if (patientsApi && patientsApi.updatePatient) patientsApi.updatePatient(patientId, { arrived: true, arrivedAt: utils.now() }, { action: 'confirm_arrival' });
+        renderPatientList(searchInput ? searchInput.value.trim() : '');
+        showPatientDetail(patientId);
+        alert('Llegada confirmada correctamente.');
     }
 
     function openAssignRoomModal(patientId) {
@@ -534,7 +532,7 @@
                 html += `<div class="doctor-item"><div><strong>${utils ? utils.escapeHtml(doc.name) : doc.name}</strong><div class="muted">Atendiendo: ${doc.patients ? doc.patients.length : 0} pacientes</div></div>
                   <div><button class="btn" data-assign-doctor="${utils ? utils.escapeHtml(doc.id) : doc.id}">Asignar</button></div></div>`;
             });
-            html += `</div><div style="margin-top:12px"><button class="btn ghost" id="btn-cancel-assign-doc">Cerrar</button></div></div>`;
+            html += `</div></div>`;
             return html;
         };
 
@@ -595,17 +593,6 @@
                     }
                 });
             });
-
-            // cancel button
-            const cancel = document.getElementById('btn-cancel-assign-doc');
-            if (cancel) {
-                const newCancel = cancel.cloneNode(true);
-                cancel.parentNode.replaceChild(newCancel, cancel);
-                newCancel.addEventListener('click', () => {
-                    window.removeEventListener('eseb:doctors:changed', doctorsChangedHandler);
-                    if (modals && modals.closeModalLarge) modals.closeModalLarge();
-                });
-            }
         };
 
         // Handler to refresh modal content when doctors change
@@ -635,96 +622,46 @@
 
     function openAdmitModal(patientId) {
         const p = (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === patientId) : null);
-        // guard: if discharged and user is medico block
         if (p && p.dischargedAt && auth && auth.currentSession && auth.currentSession().role === 'medico') {
             showNotEditableForDischarged();
             return;
         }
-
-        const html = `<div class="ig-content-large">
-      <h3>Marcar ingreso - ${utils ? utils.escapeHtml(p ? p.name : '') : ''}</h3>
-      <p class="muted">Registrar hora de ingreso.</p>
-      <div style="margin-top:12px">
-        <button class="btn primary" id="btn-confirm-admit">Marcar ingreso</button>
-        <button class="btn ghost" id="btn-cancel-admit">Cerrar</button>
-      </div>
-    </div>`;
-        if (modals && modals.openModalLarge) modals.openModalLarge(html);
-        setTimeout(() => {
-            const confirm = document.getElementById('btn-confirm-admit');
-            const cancel = document.getElementById('btn-cancel-admit');
-            if (confirm) confirm.addEventListener('click', () => {
-                if (patientsApi && patientsApi.updatePatient) patientsApi.updatePatient(patientId, { admittedAt: utils.now() }, { action: 'mark_admit' });
-                renderPatientList(searchInput ? searchInput.value.trim() : '');
-                showPatientDetail(patientId);
-                if (modals && modals.closeModalLarge) modals.closeModalLarge();
-            });
-            if (cancel) cancel.addEventListener('click', () => { if (modals && modals.closeModalLarge) modals.closeModalLarge(); });
-        }, 10);
+        if (patientsApi && patientsApi.updatePatient) patientsApi.updatePatient(patientId, { admittedAt: utils.now() }, { action: 'mark_admit' });
+        renderPatientList(searchInput ? searchInput.value.trim() : '');
+        showPatientDetail(patientId);
+        alert('Ingreso marcado correctamente.');
     }
 
     function openDischargeModal(patientId) {
         const p = (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === patientId) : null);
-        // allow only to perform discharge; but if already discharged nothing to do
         if (p && p.dischargedAt) {
-            if (modals && modals.openModalLarge) {
-                const html = `<div class="ig-content-large"><h3>Paciente ya egresado</h3><p class="muted">Este paciente ya tiene un egreso registrado.</p></div>`;
-                modals.openModalLarge(html);
-                setTimeout(() => { if (modals && modals.closeModalLarge) modals.closeModalLarge(); }, 1200);
-            } else {
-                alert('Paciente ya egresado');
-            }
+            alert('Este paciente ya tiene un egreso registrado.');
             return;
         }
 
-        const html = `<div class="ig-content-large">
-      <h3>Marcar egreso - ${utils ? utils.escapeHtml(p ? p.name : '') : ''}</h3>
-      <p class="muted">Registrar egreso y liberar recursos (camilla, actualizar doctor).</p>
-      <div style="margin-top:12px">
-        <button class="btn primary" id="btn-confirm-discharge">Confirmar egreso</button>
-        <button class="btn ghost" id="btn-cancel-discharge">Cerrar</button>
-      </div>
-    </div>`;
-        if (modals && modals.openModalLarge) modals.openModalLarge(html);
-        setTimeout(() => {
-            const confirm = document.getElementById('btn-confirm-discharge');
-            const cancel = document.getElementById('btn-cancel-discharge');
-            if (confirm) confirm.addEventListener('click', () => {
-                // free bed
-                const patient = (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === patientId) : null);
-                if (patient && patient.assignedBed) {
-                    if (roomsApi && roomsApi.releaseBed) roomsApi.releaseBed(patient.assignedBed);
-                }
+        // free bed
+        if (p && p.assignedBed) {
+            if (roomsApi && roomsApi.releaseBed) roomsApi.releaseBed(p.assignedBed);
+        }
 
-                // remove from doctor (use attendingId preferred, fallback to name)
-                if (patient) {
-                    const docs = doctorsApi && doctorsApi.getDoctors ? doctorsApi.getDoctors() : [];
-                    let doc = null;
-                    if (patient.attendingId) {
-                        doc = docs.find(d => d.id === patient.attendingId);
-                    }
-                    if (!doc && patient.attending) {
-                        doc = docs.find(d => d.name === patient.attending);
-                    }
-                    if (doc && doctorsApi && doctorsApi.removePatientFromDoctor) {
-                        try {
-                            doctorsApi.removePatientFromDoctor(doc.id, patientId);
-                        } catch (e) { /* safe */ }
-                    }
-                }
+        // remove from doctor
+        if (p) {
+            const docs = doctorsApi && doctorsApi.getDoctors ? doctorsApi.getDoctors() : [];
+            let doc = null;
+            if (p.attendingId) doc = docs.find(d => d.id === p.attendingId);
+            if (!doc && p.attending) doc = docs.find(d => d.name === p.attending);
+            if (doc && doctorsApi && doctorsApi.removePatientFromDoctor) {
+                try { doctorsApi.removePatientFromDoctor(doc.id, patientId); } catch (e) { /* safe */ }
+            }
+        }
 
-                // Mark discharge and clear attending fields
-                if (patientsApi && patientsApi.updatePatient) {
-                    patientsApi.updatePatient(patientId, { dischargedAt: utils.now(), attending: null, attendingId: null }, { action: 'mark_discharge' });
-                }
+        if (patientsApi && patientsApi.updatePatient) {
+            patientsApi.updatePatient(patientId, { dischargedAt: utils.now(), attending: null, attendingId: null }, { action: 'mark_discharge' });
+        }
 
-                // render lists & detail
-                renderPatientList(searchInput ? searchInput.value.trim() : '');
-                showPatientDetail(patientId);
-                if (modals && modals.closeModalLarge) modals.closeModalLarge();
-            });
-            if (cancel) cancel.addEventListener('click', () => { if (modals && modals.closeModalLarge) modals.closeModalLarge(); });
-        }, 10);
+        renderPatientList(searchInput ? searchInput.value.trim() : '');
+        showPatientDetail(patientId);
+        alert('Egreso confirmado correctamente.');
     }
 
     function openEditProcedureModal(patientId, procedureId) {
@@ -744,11 +681,16 @@
         const html = `<div class="ig-content-large">
       <h3>Editar procedimiento</h3>
       <p class="muted">Modifica la descripción o el responsable del procedimiento.</p>
-      <div style="margin-top:12px">
-        <label>Descripción</label>
+      <div style="margin-top:10px" class="detail-card">
+        <strong>Descripción</strong>
         <input id="edit-proc-desc" value="${utils ? utils.escapeHtml(pr.desc) : pr.desc}" />
-        <label>Realizado por</label>
-        <input id="edit-proc-by" value="${utils ? utils.escapeHtml(pr.performedBy || '') : (pr.performedBy || '')}" />
+        <label style="display:block;margin-top:10px;margin-bottom:4px">Realizado por</label>
+        <select id="edit-proc-by" class="ig-input">
+          <option value="">¿Quien atendio?</option>
+          ${(doctorsApi && doctorsApi.getDoctors ? doctorsApi.getDoctors() : []).map(d =>
+            `<option value="${utils ? utils.escapeHtml(d.name) : d.name}" ${pr.performedBy === d.name ? 'selected' : ''}>${utils ? utils.escapeHtml(d.name) : d.name}</option>`
+        ).join('')}
+        </select>
         <div style="margin-top:12px">
           <button class="btn primary" id="btn-save-proc-edit">Guardar</button>
           <button class="btn ghost" id="btn-cancel-proc-edit">Cancelar</button>
@@ -769,7 +711,7 @@
                 }
 
                 const newDesc = document.getElementById('edit-proc-desc').value.trim();
-                const newBy = document.getElementById('edit-proc-by').value.trim() || (auth && auth.currentSession ? (auth.currentSession().username || 'staff') : 'staff');
+                const newBy = document.getElementById('edit-proc-by').value || (auth && auth.currentSession ? (auth.currentSession().username || 'staff') : 'staff');
                 if (!newDesc) return alert('La descripción no puede estar vacía');
                 if (proceduresApi && proceduresApi.editProcedure) proceduresApi.editProcedure(patientId, procedureId, newDesc, newBy);
                 if (modals && modals.closeModalLarge) modals.closeModalLarge();
@@ -880,12 +822,8 @@
             html += `</div>`;
         }
 
-        html += `<hr /><div style="margin-top:10px"><button class="btn ghost" id="btn-close-admin-detail">Cerrar</button></div></div>`;
+        html += `<hr /></div>`;
         if (modals && modals.openModalLarge) modals.openModalLarge(html);
-        setTimeout(() => {
-            const btnClose = document.getElementById('btn-close-admin-detail');
-            if (btnClose) btnClose.addEventListener('click', () => { if (modals && modals.closeModalLarge) modals.closeModalLarge(); });
-        }, 10);
     }
 
     function openAdminAuditModal(patientId) {
@@ -916,12 +854,8 @@
             html += `</tbody></table>`;
         }
 
-        html += `</div><div style="margin-top:12px"><button class="btn ghost" id="btn-close-admin-audit">Cerrar</button></div></div>`;
+        html += `</div></div>`;
         if (modals && modals.openModalLarge) modals.openModalLarge(html);
-        setTimeout(() => {
-            const close = document.getElementById('btn-close-admin-audit');
-            if (close) close.addEventListener('click', () => { if (modals && modals.closeModalLarge) modals.closeModalLarge(); });
-        }, 10);
     }
 
     /* ---------------------------
@@ -931,7 +865,7 @@
         currentListFilter = mode;
         updateFilterButtonsUI();
         renderPatientList(searchInput ? searchInput.value.trim() : '');
-        const sess = auth && auth.currentSession ? auth.currentSession() : null;
+        const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
         if (sess && sess.role === 'admin' && panelStaff && !panelStaff.classList.contains('hidden')) {
             renderAdminTable();
         }
@@ -944,13 +878,8 @@
         if (currentListFilter === 'discharged') btnViewEgresados.classList.add('active');
     }
 
-    /* ---------------------------
-       Cleanup UI when logging out
-       --------------------------- */
+
     function handleLogoutUI() {
-        if (panelStaff) panelStaff.classList.add('hidden');
-        const loginModal = document.getElementById('modal-login');
-        if (loginModal) loginModal.classList.add('hidden');
         if (modals && typeof modals.closeModalLarge === 'function') modals.closeModalLarge();
         if (patientDetailEl) patientDetailEl.innerHTML = '<div class="muted">Selecciona un paciente para ver detalles</div>';
         if (patientListEl) patientListEl.innerHTML = '';
@@ -962,26 +891,23 @@
        Init: wire handlers and events
        --------------------------- */
     function init() {
+        if (init._called) return;
+        init._called = true;
         if (btnSearch) btnSearch.addEventListener('click', () => renderPatientList(searchInput ? searchInput.value.trim() : ''));
         if (searchInput) searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') renderPatientList(searchInput.value.trim()); });
 
         if (btnViewActive) btnViewActive.addEventListener('click', () => setListFilter('active'));
         if (btnViewEgresados) btnViewEgresados.addEventListener('click', () => setListFilter('discharged'));
 
-        if (btnLogout) btnLogout.addEventListener('click', () => {
-            try { if (auth && auth.logout) auth.logout(); } catch (e) { console.warn(e); }
-            handleLogoutUI();
-        });
-
         // Listen to domain events to refresh UI
         window.addEventListener('eseb:patient:created', () => {
             renderPatientList(searchInput ? searchInput.value.trim() : '');
-            const sess = auth && auth.currentSession ? auth.currentSession() : null;
+            const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
             if (sess && sess.role === 'admin') renderAdminTable();
         });
         window.addEventListener('eseb:patient:updated', (ev) => {
             renderPatientList(searchInput ? searchInput.value.trim() : '');
-            const sess = auth && auth.currentSession ? auth.currentSession() : null;
+            const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
             if (sess && sess.role === 'admin') renderAdminTable();
             const detailWrap = patientDetailEl && patientDetailEl.querySelector ? patientDetailEl.querySelector('[data-patient-id]') : null;
             if (detailWrap) {
@@ -991,30 +917,42 @@
             }
         });
         window.addEventListener('eseb:procedure:added', () => {
-            const sess = auth && auth.currentSession ? auth.currentSession() : null;
+            const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
             if (sess && sess.role === 'admin') renderAdminTable();
             renderPatientList(searchInput ? searchInput.value.trim() : '');
         });
         window.addEventListener('eseb:procedure:edited', () => {
-            const sess = auth && auth.currentSession ? auth.currentSession() : null;
+            const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
             if (sess && sess.role === 'admin') renderAdminTable();
             renderPatientList(searchInput ? searchInput.value.trim() : '');
         });
         window.addEventListener('eseb:audit:changed', () => {
-            const sess = auth && auth.currentSession ? auth.currentSession() : null;
+            const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
             if (sess && sess.role === 'admin') renderAdminTable();
         });
 
         // storage event (cross-tab) refresh
         window.addEventListener('eseb:storage', () => {
             renderPatientList(searchInput ? searchInput.value.trim() : '');
-            const sess = auth && auth.currentSession ? auth.currentSession() : null;
+            const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
             if (sess && sess.role === 'admin') renderAdminTable();
         });
 
         // initial render
         renderPatientList();
-        const sess = auth && auth.currentSession ? auth.currentSession() : null;
+        const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
+
+        // Mostrar nombre del usuario en el título del panel cuando esté disponible
+        const panelTitle = document.getElementById('panel-title');
+        if (panelTitle && sess) {
+            const displayName = sess.displayName || sess.username || sess.email || null;
+            if (displayName) {
+                panelTitle.textContent = sess.role === 'admin'
+                    ? `Panel Administrativo — ${displayName}`
+                    : `Panel Médico — ${displayName}`;
+            }
+        }
+
         if (sess && sess.role === 'admin') {
             renderAdminTable();
         }
@@ -1027,4 +965,20 @@
         showPatientDetail,
         renderAdminTable
     };
+
+    window.addEventListener('load', () => {
+        const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
+
+        if (sess) {
+            if (typeof init === 'function') {
+                init();
+            } else if (window.eseb && window.eseb.staffPanel && typeof window.eseb.staffPanel.init === 'function') {
+                window.eseb.staffPanel.init();
+            } else {
+                console.warn("No se encontró init()");
+            }
+        } else {
+            console.warn("No hay sesión activa");
+        }
+    });
 })();

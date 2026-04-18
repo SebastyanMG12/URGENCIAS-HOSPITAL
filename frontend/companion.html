@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>E.S.E Hospital El Salvador de Ubaté - Consulta Acompañante</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+    <header class="topbar">
+
+        <!-- Boton de volver a la pagina principal -->
+        <!-- <a href="index.html" class="drawer-toggle" aria-label="Volver al inicio" style="text-decoration:none;">
+            &#8592;
+        </a> -->
+        <h1 class="hospital-name">E.S.E HOSPITAL EL SALVADOR DE UBATÉ</h1>
+    </header>
+
+    <main class="container">
+        <section class="card page-card" style="max-width: 720px;">
+            <h2>CONSULTA DEL ACOMPAÑANTE</h2>
+            <p class="muted" style="margin-top: 0;">
+                Ingresa el código público del paciente para consultar el estado y la información compartida.
+            </p>
+
+            <form id="form-companion" autocomplete="off">
+                <div class="form-row">
+                    <input type="text" id="comp-code" placeholder="Código público del paciente" required />
+                </div>
+
+                <div class="row">
+                    <button class="btn primary" type="submit">Consultar</button>
+                    <a class="btn ghost" href="index.html"
+                        style="text-decoration:none; display:inline-flex; align-items:center;">
+                        Volver
+                    </a>
+                </div>
+            </form>
+
+            <p class="small-muted" style="margin-top: 16px;">
+                Este acceso muestra solo la información habilitada por el personal autorizado.
+            </p>
+        </section>
+    </main>
+
+    <div class="overlay hidden" id="modal-view">
+        <div class="ig-modal-large" role="dialog" aria-modal="true">
+            <button class="ig-close" id="btn-close-view" aria-label="Cerrar">&times;</button>
+            <div class="ig-content-large" id="modal-view-content"></div>
+        </div>
+    </div>
+
+    <script src="js/utils.js" defer></script>
+    <script src="js/storage.js" defer></script>
+    <script src="js/audit.js" defer></script>
+    <script src="js/patients.js" defer></script>
+    <script src="js/modals.js" defer></script>
+    <script src="js/companion.js" defer></script>
+</body>
+
+</html>

@@ -24,7 +24,7 @@
     <!-- Drawer lateral izquierdo -->
     <nav class="drawer hidden" id="drawer-menu">
         <div class="drawer-header">
-            <span class="drawer-title">Accesos Rápidos</span>
+            <span class="drawer-title">ACCESOS RAPIDOS</span>
             <button class="drawer-close" id="btn-close-drawer" aria-label="Cerrar menú">&times;</button>
         </div>
         <div class="drawer-body">
@@ -45,7 +45,7 @@
             <section class="card public-register">
                 <h2>PRE-REGISTRO PACIENTE</h2>
 
-                <form id="form-register">
+                <form id="form-register" autocomplete="off">
                     <!-- Fila 1: Nombre y documento -->
                     <div class="form-row">
                         <input type="text" id="p_name" placeholder="Nombre completo *" required />
@@ -138,43 +138,7 @@
                 <small class="muted">Al registrarte se genera un código público para que tus acompañantes consulten el
                     estado.</small>
             </section>
-
-
-            <!-- MODALES / PANELES -->
-            <!-- Login Modal -->
-            <div class="overlay hidden" id="modal-login">
-                <div class="modal">
-                    <h3 id="login-title">Login</h3>
-                    <form id="form-login">
-                        <input type="text" id="login-username" placeholder="Usuario" required />
-                        <input type="password" id="login-password" placeholder="Contraseña" required />
-                        <div class="row">
-                            <select id="login-role">
-                                <option value="medico">Personal Médico</option>
-                                <option value="admin">Administración</option>
-                            </select>
-                            <button class="btn primary" type="submit">Ingresar</button>
-                        </div>
-                    </form>
-                    <hr />
-                    <div>
-                        <h4>Crear usuario local</h4>
-                        <form id="form-create-user">
-                            <input type="text" id="new-username" placeholder="Usuario" required />
-                            <input type="password" id="new-password" placeholder="Contraseña" required />
-                            <select id="new-role">
-                                <option value="medico">Personal Médico</option>
-                                <option value="admin">Administración</option>
-                            </select>
-                            <div class="row">
-                                <button class="btn" id="btn-create-user" type="submit">Crear usuario</button>
-                                <button class="btn ghost" id="btn-cancel-login" type="button">Cerrar</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
+            
             <!-- Registration success "instagram style" modal -->
             <div class="overlay hidden" id="modal-registered">
                 <div class="ig-modal">
@@ -190,58 +154,6 @@
                 </div>
             </div>
 
-            <!-- General large scrollable modal used for staff actions and for companion view -->
-            <div class="overlay hidden" id="modal-view">
-                <div class="ig-modal-large" role="dialog" aria-modal="true">
-                    <button class="ig-close" id="btn-close-view" aria-label="Cerrar">&times;</button>
-                    <div class="ig-content-large" id="modal-view-content">
-                        <!-- Contenido dinámico -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Staff Panel -->
-            <div class="overlay hidden" id="panel-staff">
-                <div class="panel">
-                    <header class="panel-header">
-                        <h3 id="panel-title">Panel</h3>
-                        <div class="panel-actions">
-                            <button class="btn green" id="btn-view-active">Activos</button>
-                            <button class="btn red" id="btn-view-egresados">Egresados</button>
-                            <button class="btn ghost" id="btn-logout">Cerrar sesión</button>
-                        </div>
-                    </header>
-
-                    <div class="panel-body">
-                        <aside class="left">
-                            <div class="search">
-                                <input id="search-patient" placeholder="Buscar por nombre / internalId / publicCode" />
-                                <button class="btn" id="btn-search">Buscar</button>
-                            </div>
-                            <div class="list" id="patient-list"></div>
-                        </aside>
-
-                        <section class="right" id="patient-detail">
-                            <div class="muted">Selecciona un paciente para ver detalles</div>
-                        </section>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Companion (uses modal-view) -->
-            <div class="overlay hidden" id="panel-companion">
-                <div class="modal">
-                    <h3>Consulta Acompañante</h3>
-                    <form id="form-companion">
-                        <input type="text" id="comp-code" placeholder="Código público del paciente" required />
-                        <div class="row">
-                            <button class="btn primary" type="submit">Consultar</button>
-                            <button class="btn ghost" id="btn-close-companion" type="button">Cerrar</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
             <script src="js/utils.js" defer></script>
             <script src="js/storage.js" defer></script>
             <script src="js/audit.js" defer></script>
@@ -251,8 +163,6 @@
             <script src="js/doctors.js" defer></script>
             <script src="js/procedures.js" defer></script>
             <script src="js/modals.js" defer></script>
-            <script src="js/companion.js" defer></script>
-            <script src="js/staff-panel.js" defer></script>
             <script src="js/main.js" defer></script>
 
 </body>

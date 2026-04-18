@@ -31,11 +31,12 @@
         if (!p) {
             const notFoundHtml = `<div class="ig-content"><h3>Código no encontrado</h3><p class="muted">El código ingresado no corresponde a ningún paciente.</p></div>`;
             if (modals && modals.openCompanionContent) modals.openCompanionContent(notFoundHtml);
+            return; // ← esto faltaba, sin esto el código sigue y rompe con p null
         }
 
         // Build HTML with companion info and diagnosis (if allowed)
         let html = `<div class="ig-content-large">
-      <h3>${utils ? utils.escapeHtml(p.name) : p.name}</h3>
+      <h3>${utils ? utils.escapeHtml(p.name) : p.name} </h3>
       <div class="detail-grid">
         <div class="kv"><strong>Motivo</strong><div class="muted">${utils ? utils.escapeHtml(p.reason || '-') : (p.reason || '-')}</div></div>
         <div class="kv"><strong>Teléfono</strong><div class="muted">${utils ? utils.escapeHtml(p.phone || '-') : (p.phone || '-')}</div></div>
@@ -97,35 +98,6 @@
             const code = (compInput && compInput.value) ? compInput.value.trim() : '';
             if (!code) return;
             showCompanionInModal(code);
-        });
-    }
-
-    // Abrir panel-companion (pequeño) desde botón principal
-    const openCompanionBtn = document.getElementById('open-companion');
-    if (openCompanionBtn) {
-        openCompanionBtn.addEventListener('click', () => {
-            if (panelCompanion) panelCompanion.classList.remove('hidden');
-            const drawerEl = document.getElementById('drawer-menu');
-            const backdropEl = document.getElementById('drawer-backdrop');
-            if (drawerEl) drawerEl.classList.remove('open');
-            if (backdropEl) backdropEl.classList.add('hidden');
-
-            if (compInput) { compInput.value = ''; compInput.focus(); }
-            // ocultar pantalla principal ligeramente (mantener visible but not necessary)
-            const mainContainer = document.querySelector('.container');
-            if (mainContainer) mainContainer.style.display = '';
-        });
-    }
-
-    // Botón pequeño "Cerrar" del panel companion: ocultar panel, limpiar input y mostrar principal
-    const btnCloseCompanionSmall = document.getElementById('btn-close-companion');
-    if (btnCloseCompanionSmall) {
-        btnCloseCompanionSmall.addEventListener('click', () => {
-            if (panelCompanion) panelCompanion.classList.add('hidden');
-            if (compInput) compInput.value = '';
-            currentShownCode = null;
-            const mainContainer = document.querySelector('.container');
-            if (mainContainer) mainContainer.style.display = '';
         });
     }
 

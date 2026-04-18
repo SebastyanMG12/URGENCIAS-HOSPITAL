@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>E.S.E Hospital El Salvador de Ubaté - Acceso Personal</title>
+
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+    <header class="topbar">
+
+        <!-- Boton de volver a la pagina principal  -->
+        <!-- <a href="index.html" class="" aria-label="Volver al inicio" style="text-decoration:none;">
+            &#8592;
+        </a> -->
+        <h1 class="hospital-name">E.S.E HOSPITAL EL SALVADOR DE UBATÉ</h1>
+    </header>
+
+    <main class="container">
+        <section class="card page-card">
+            <h2>ACCESO DEL PERSONAL</h2>
+            <p class="muted" style="margin-top: 0;">
+                Ingreso exclusivo para personal médico y administrativo autorizado.
+            </p>
+
+            <div class="page-box">
+                <h3 style="margin-top: 5; margin-bottom: 8px; color: var(--primary-2);">
+                    Iniciar sesión con Google
+                </h3>
+                <p class="muted" style="margin-top: 0;">
+                    Usa únicamente una cuenta autorizada por la institución.
+                </p>
+
+
+                <!-- TEMPORAL: selector de rol hasta que el backend asigne custom claims -->
+                <div style="background:#fff8ed;border:1px solid rgba(251,146,60,.2);
+                            border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;
+                            color:#92400e">
+                    ⚠ Modo desarrollo: selecciona tu rol hasta que el backend esté activo.
+                </div>
+                <select id="role-temp-select" style="width:100%;padding:10px 14px;border-radius:12px;
+                        border:none;box-shadow:0 2px 8px rgba(2,6,23,.06);font-size:14px;
+                        margin-bottom:10px;background:linear-gradient(180deg,#fff,#fafafa)">
+                    <option value="medico">Personal Médico / Enfermería</option>
+                    <option value="admin">Administración</option>
+                </select>
+
+
+                <button class="btn primary" id="btn-google-login" type="button" style="width: 100%; margin-top: 8px;">
+                    Continuar con Google
+                </button>
+
+                <div id="auth-message" class="small-muted page-message"></div>
+            </div>
+
+            <!-- <div class="page-box">
+                <h3 style="margin-top: 0; margin-bottom: 8px; color: var(--primary-2);">
+                    Acceso por rol
+                </h3>
+                <p class="muted" style="margin-top: 0;">
+                    Después del ingreso, el sistema enviará al usuario al panel correspondiente:
+                    médico o administración.
+                </p>
+
+                <div class="page-actions">
+                    <span class="badge">Médico</span>
+                    <span class="badge">Administración</span>
+                </div>
+            </div> -->
+
+            <p class="small-muted" style="margin-top: 16px;">
+                Si no tienes una cuenta autorizada, debes solicitar acceso al administrador.
+            </p>
+        </section>
+    </main>
+
+    <script type="module" src="js/login.js"></script>
+</body>
+</html>

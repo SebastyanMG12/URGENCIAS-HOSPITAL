@@ -13,8 +13,9 @@
     const formRegister = document.getElementById('form-register');
     const registerResult = document.getElementById('register-result');
     const btnClear = document.getElementById('btn-clear');
-    
-    // Menu
+
+    // BOTON DE MENU DRAWER
+
     const drawer = document.getElementById('drawer-menu');
     const backdrop = document.getElementById('drawer-backdrop');
     const btnOpenDrawer = document.getElementById('btn-open-drawer');
@@ -82,83 +83,26 @@
         btnClear.addEventListener('click', () => { if (formRegister) formRegister.reset(); });
     }
 
+
+
+    // Abajo comento y este bloque es por el cual reemplazo_______________________________________
+    // BLOQUE NUEVO, ABJO DEJO EL VIEJO
+
     const openLoginStaffBtn = document.getElementById('open-login-staff') || document.getElementById('open-login-med');
+
     if (openLoginStaffBtn) {
         openLoginStaffBtn.addEventListener('click', () => {
-            const loginModal = document.getElementById('modal-login');
-            if (loginModal) {
-                loginModal.classList.remove('hidden');
-                closeDrawer();
-                const lu = document.getElementById('login-username');
-                const lp = document.getElementById('login-password');
-                if (lu) lu.value = '';
-                if (lp) lp.value = '';
-            }
+            window.open('login.html', '_blank', 'noopener,noreferrer');
+            closeDrawer();
         });
     }
 
-    const btnCancelLogin = document.getElementById('btn-cancel-login');
-    if (btnCancelLogin) {
-        btnCancelLogin.addEventListener('click', () => {
-            const loginModal = document.getElementById('modal-login');
-            if (loginModal) loginModal.classList.add('hidden');
+    const openCompanionBtn = document.getElementById('open-companion') || document.getElementById('open-companion-med');
+
+    if (openCompanionBtn) {
+        openCompanionBtn.addEventListener('click', () => {
+            window.open('companion.html', '_blank', 'noopener,noreferrer');
+            closeDrawer();
         });
     }
-
-    const formLogin = document.getElementById('form-login');
-    const formCreateUser = document.getElementById('form-create-user');
-    if (formCreateUser) {
-        formCreateUser.addEventListener('submit', (ev) => {
-            ev.preventDefault();
-            const u = document.getElementById('new-username').value.trim();
-            const p = document.getElementById('new-password').value.trim();
-            const r = document.getElementById('new-role').value;
-            try {
-                auth.saveUser(u, p, r);
-                alert('Usuario creado localmente. Úsalo para iniciar sesión.');
-                document.getElementById('new-username').value = '';
-                document.getElementById('new-password').value = '';
-            } catch (err) {
-                alert(err.message || 'Error creando usuario');
-            }
-        });
-    }
-
-    if (formLogin) {
-        formLogin.addEventListener('submit', (ev) => {
-            ev.preventDefault();
-            const u = document.getElementById('login-username').value.trim();
-            const p = document.getElementById('login-password').value.trim();
-            const r = document.getElementById('login-role').value;
-
-            let session;
-            try {
-                session = auth.loginUser(u, p, r);
-            } catch (err) {
-                alert(err.message || 'Error al iniciar sesión');
-                return;
-            }
-            if (!session) { alert('Credenciales inválidas'); return; }
-
-            document.getElementById('login-username').value = '';
-            document.getElementById('login-password').value = '';
-            const loginModal = document.getElementById('modal-login');
-            if (loginModal) loginModal.classList.add('hidden');
-
-            const panel = document.getElementById('panel-staff');
-            if (panel) panel.classList.remove('hidden');
-            if (staffPanel && typeof staffPanel.init === 'function') staffPanel.init();
-        });
-    }
-
-    window.addEventListener('load', () => {
-        const sess = auth.currentSession();
-        if (sess) {
-            const panel = document.getElementById('panel-staff');
-            if (panel) panel.classList.remove('hidden');
-            if (staffPanel && typeof staffPanel.init === 'function') staffPanel.init();
-        } else {
-            if (staffPanel && typeof staffPanel.renderPatientList === 'function') staffPanel.renderPatientList();
-        }
-    });
 })();   
