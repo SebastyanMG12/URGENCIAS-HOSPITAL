@@ -42,128 +42,148 @@
     </nav>
 
     <main class="container">
-            <section class="card public-register">
-                <h2>PRE-REGISTRO PACIENTE</h2>
+        <section class="card public-register">
+            <h2>PRE-REGISTRO PACIENTE</h2>
 
-                <form id="form-register" autocomplete="off">
-                    <!-- Fila 1: Nombre y documento -->
-                    <div class="form-row">
-                        <input type="text" id="p_name" placeholder="Nombre completo *" required />
-                        <input type="text" id="p_doc" placeholder="Documento de identidad (opcional)" />
-                    </div>
+            <form id="form-register" autocomplete="off">
+                <!-- Fila 1: Nombre y documento -->
+                <div class="form-row">
+                    <input type="text" id="p_name" placeholder="Nombre completo *" required />
+                    <select id="p_doc_tipo">
+                        <option value="">Tipo de documento (opcional)</option>
+                        <option value="CC">Cédula de Ciudadanía</option>
+                        <option value="TI">Tarjeta de Identidad</option>
+                        <option value="RC">Registro Civil</option>
+                        <option value="CE">Cédula de Extranjería</option>
+                        <option value="PA">Pasaporte</option>
+                        <option value="PE">Permiso Especial (PEP)</option>
+                        <option value="MS">Menor sin identificación</option>
+                    </select>
+                </div>
 
-                    <!-- Fila 2: Teléfono y motivo -->
-                    <div class="form-row">
-                        <input type="tel" id="p_phone" placeholder="Teléfono de contacto" />
-                        <input type="text" id="p_reason" placeholder="Motivo de urgencia / síntoma principal *"
-                            required />
-                    </div>
+                <!-- Fila número de documento: oculta hasta que se elija un tipo -->
+                <div class="form-row" id="fila-doc" style="display:none;">
+                    <input type="text" id="p_doc" placeholder="Número de documento" />
+                </div>
 
-                    <!-- Fila 3: Tipo de sangre y nivel de triage -->
-                    <div class="form-row">
-                        <select id="p_blood_type">
-                            <option value="">Tipo de sangre (opcional)</option>
-                            <option value="A+">A+</option>
-                            <option value="A-">A-</option>
-                            <option value="B+">B+</option>
-                            <option value="B-">B-</option>
-                            <option value="AB+">AB+</option>
-                            <option value="AB-">AB-</option>
-                            <option value="O+">O+</option>
-                            <option value="O-">O-</option>
-                        </select>
-                        <select id="p_triage">
-                            <option value="">Nivel de urgencia (paciente)</option>
-                            <option value="rojo">🔴 Rojo — Crítico / Inmediato</option>
-                            <option value="naranja">🟠 Naranja — Muy urgente</option>
-                            <option value="amarillo">🟡 Amarillo — Urgente</option>
-                            <option value="verde">🟢 Verde — Poco urgente</option>
-                        </select>
-                    </div>
+                <!-- Fila 1.5: Número de documento (aparece condicionalmente) -->
+                <div class="form-row" id="fila-doc" style="display:none;">
+                    <input type="text" id="p_doc" placeholder="Número de documento *" autocomplete="off" />
+                </div>
 
-                    <!-- Fila 4: Alergias -->
-                    <div class="form-row">
-                        <input type="text" id="p_allergies"
-                            placeholder="Alergias a medicamentos (ej: Penicilina, Ibuprofeno)" />
-                    </div>
+                <!-- Fila 2: Teléfono y motivo -->
+                <div class="form-row">
+                    <input type="tel" id="p_phone" placeholder="Teléfono de contacto" />
+                    <input type="text" id="p_reason" placeholder="Motivo de urgencia / síntoma principal *" required />
+                </div>
 
-                    <!-- Fila 5: Notas adicionales -->
-                    <div class="form-row">
-                        <textarea id="p_notes"
-                            placeholder="Notas adicionales (condiciones previas, medicamentos actuales...)"
-                            rows="2"></textarea>
-                    </div>
-                    <h2>DATOS DEL ACOMPAÑANTE (OPCIONAL)</h2>
-                    <!-- Fila 6: Datos del acompañante -->
-                    <div class="form-row">
-                        <input type="text" id="p_comp_name" placeholder="Nombre del acompañante (opcional)" />
-                        <input type="tel" id="p_comp_phone" placeholder="Teléfono del acompañante" />
-                    </div>
-                    <div class="form-row">
-                        <select id="p_comp_relation">
-                            <option value="">Parentesco / relación del acompañante</option>
-                            <option value="Padre/Madre">Padre / Madre</option>
-                            <option value="Hijo/Hija">Hijo / Hija</option>
-                            <option value="Cónyuge">Cónyuge / Pareja</option>
-                            <option value="Hermano/Hermana">Hermano / Hermana</option>
-                            <option value="Amigo/Amiga">Amigo / Amiga</option>
-                            <option value="Otro">Otro</option>
-                        </select>
-                    </div>
+                <!-- Fila 3: Tipo de sangre y nivel de triage -->
+                <div class="form-row">
+                    <select id="p_blood_type">
+                        <option value="">Tipo de sangre (opcional)</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                    </select>
+                    <select id="p_triage">
+                        <option value="">Nivel de urgencia (paciente)</option>
+                        <option value="rojo">🔴 Rojo — Crítico / Inmediato</option>
+                        <option value="naranja">🟠 Naranja — Muy urgente</option>
+                        <option value="amarillo">🟡 Amarillo — Urgente</option>
+                        <option value="verde">🟢 Verde — Poco urgente</option>
+                    </select>
+                </div>
 
-                    <!-- Fila 7: Consentimiento de datos — OBLIGATORIO por Ley 1581 de 2012 -->
-                    <div class="form-row" style="align-items:flex-start;gap:10px">
-                        <label style="display:flex;gap:10px;align-items:flex-start;font-size:13px;
+                <!-- Fila 4: Alergias -->
+                <div class="form-row">
+                    <input type="text" id="p_allergies"
+                        placeholder="Alergias a medicamentos (ej: Penicilina, Ibuprofeno)" />
+                </div>
+
+                <!-- Fila 5: Notas adicionales -->
+                <div class="form-row">
+                    <textarea id="p_notes"
+                        placeholder="Notas adicionales (condiciones previas, medicamentos actuales...)"
+                        rows="2"></textarea>
+                </div>
+                <h2>DATOS DEL ACOMPAÑANTE (OPCIONAL)</h2>
+                <!-- Fila 6: Datos del acompañante -->
+                <div class="form-row">
+                    <input type="text" id="p_comp_name" placeholder="Nombre del acompañante (opcional)" />
+                    <input type="tel" id="p_comp_phone" placeholder="Teléfono del acompañante" />
+                </div>
+                <div class="form-row">
+                    <select id="p_comp_relation">
+                        <option value="">Parentesco / relación del acompañante</option>
+                        <option value="Padre/Madre">Padre / Madre</option>
+                        <option value="Hijo/Hija">Hijo / Hija</option>
+                        <option value="Cónyuge">Cónyuge / Pareja</option>
+                        <option value="Hermano/Hermana">Hermano / Hermana</option>
+                        <option value="Amigo/Amiga">Amigo / Amiga</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                </div>
+
+                <!-- Fila 7: Consentimiento de datos — OBLIGATORIO por Ley 1581 de 2012 -->
+                <div class="form-row" style="align-items:flex-start;gap:10px">
+                    <label style="display:flex;gap:10px;align-items:flex-start;font-size:13px;
                         line-height:1.4;cursor:pointer">
-                            <input type="checkbox" id="p_consent" required
-                                style="margin-top:2px;flex-shrink:0;width:16px;height:16px;cursor:pointer" />
-                            <span>
-                                <em>Autorizo el tratamiento de mis datos personales con la finalidad exclusiva
-                                    de recibir atención médica en urgencias, conforme a la
-                                    <strong>Ley 1581 de 2012</strong> de protección de datos personales de Colombia
-                                    y la política de privacidad del Hospital El Salvador de Ubaté E.S.E.
-                                    <strong>CAMPO OBLIGATORIO</strong>.</em>
-                            </span>
-                        </label>
-                    </div>
+                        <input type="checkbox" id="p_consent" required
+                            style="margin-top:2px;flex-shrink:0;width:16px;height:16px;cursor:pointer" />
+                        <span>
+                            <em>Autorizo el tratamiento de mis datos personales con la finalidad exclusiva
+                                de recibir atención médica en urgencias, conforme a la
+                                <strong>Ley 1581 de 2012</strong> de protección de datos personales de Colombia
+                                y la política de privacidad del Hospital El Salvador de Ubaté E.S.E.
+                                <strong>CAMPO OBLIGATORIO</strong>.</em>
+                        </span>
+                    </label>
+                </div>
 
-                    <!-- Fila 8: Acciones -->
-                    <div class="form-row actions">
-                        <button class="btn primary" type="submit">Enviar pre-registro</button>
-                        <button class="btn ghost" type="button" id="btn-clear">Limpiar</button>
-                    </div>
-                </form>
+                <!-- Fila 8: Acciones -->
+                <div class="form-row actions">
+                    <button class="btn primary" type="submit">Enviar pre-registro</button>
+                    <button class="btn ghost" type="button" id="btn-clear">Limpiar</button>
+                </div>
+            </form>
 
-                <div id="register-result" class="muted" style="display:none;"></div>
-                <small class="muted">Al registrarte se genera un código público para que tus acompañantes consulten el
-                    estado.</small>
-            </section>
-            
-            <!-- Registration success "instagram style" modal -->
-            <div class="overlay hidden" id="modal-registered">
-                <div class="ig-modal">
-                    <button class="ig-close" id="btn-close-registered" aria-label="Cerrar">&times;</button>
-                    <div class="ig-content">
-                        <h3>Registro exitoso</h3>
-                        <p class="ig-sub">Tu código público es:</p>
+            <div id="register-result" class="muted" style="display:none;"></div>
+            <small class="muted">Al registrarte se genera un código público para que tus acompañantes consulten el
+                estado.</small>
+        </section>
 
-                        <div class="ig-code" id="reg-code">--</div>
-                        <div id="qr-code-container" style="margin:12px auto;display:flex;justify-content:center;"></div>
-                        <p class="muted">Guarda y comparte este código solo con tus acompañantes autorizados.</p>
-                    </div>
+        <!-- Registration success "instagram style" modal -->
+        <div class="overlay hidden" id="modal-registered">
+            <div class="ig-modal">
+                <button class="ig-close" id="btn-close-registered" aria-label="Cerrar">&times;</button>
+                <div class="ig-content">
+                    <h3>Registro exitoso</h3>
+                    <p class="ig-sub">Tu código público es:</p>
+
+                    <div class="ig-code" id="reg-code">--</div>
+                    <div id="qr-code-container" style="margin:12px auto;display:flex;justify-content:center;"></div>
+                    <p class="muted">Guarda y comparte este código solo con tus acompañantes autorizados.</p>
                 </div>
             </div>
+        </div>
 
-            <script src="js/utils.js" defer></script>
-            <script src="js/storage.js" defer></script>
-            <script src="js/audit.js" defer></script>
-            <script src="js/auth.js" defer></script>
-            <script src="js/patients.js" defer></script>
-            <script src="js/rooms.js" defer></script>
-            <script src="js/doctors.js" defer></script>
-            <script src="js/procedures.js" defer></script>
-            <script src="js/modals.js" defer></script>
-            <script src="js/main.js" defer></script>
+        <script src="js/api.js" defer></script>
+        <script src="js/utils.js" defer></script>
+        <script src="js/storage.js" defer></script>
+        <script src="js/validators.js" defer></script>
+        <script src="js/audit.js" defer></script>
+        <script src="js/auth.js" defer></script>
+        <script src="js/patients.js" defer></script>
+        <script src="js/rooms.js" defer></script>
+        <script src="js/doctors.js" defer></script>
+        <script src="js/procedures.js" defer></script>
+        <script src="js/modals.js" defer></script>
+        <script src="js/main.js" defer></script>
 
 </body>
 

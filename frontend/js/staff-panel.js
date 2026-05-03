@@ -64,21 +64,29 @@
     /* ---------------------------
        Render list (left column)
        --------------------------- */
-    function renderPatientList(textFilter = '') {
-        const all = (patientsApi && patientsApi.getPatients && patientsApi.getPatients()) || [];
+    async function renderPatientList(textFilter = '') {
+        let all = [];
+        try {
+            const api = window.eseb && window.eseb.api;
+            if (api) {
+                all = await api.getAllPatients();
+            }
+        } catch (err) {
+            console.warn('Error cargando pacientes:', err.message);
+        }
         const f = (textFilter || '').toLowerCase().trim();
 
         let filtered = all.filter(p => {
-            if (currentListFilter === 'active') return !p.dischargedAt;
-            if (currentListFilter === 'discharged') return !!p.dischargedAt;
+            if (currentListFilter === 'active') return !p.discharged_at;
+            if (currentListFilter === 'discharged') return !!p.discharged_at;
             return true;
         });
 
         if (f) {
             filtered = filtered.filter(p => {
                 return (p.name && p.name.toLowerCase().includes(f)) ||
-                    (p.internalId && p.internalId.toLowerCase().includes(f)) ||
-                    (p.publicCode && p.publicCode.toLowerCase().includes(f)) ||
+                    (p.internal_id && p.internal_id.toLowerCase().includes(f)) ||
+                    (p.public_code && p.public_code.toLowerCase().includes(f)) ||
                     (p.reason && p.reason.toLowerCase().includes(f));
             });
         }
@@ -98,15 +106,15 @@
                         <small>${utils ? utils.escapeHtml(p.reason || '') : (p.reason || '')} · ${utils ? utils.escapeHtml(p.phone || '') : (p.phone || '')}</small>
                        </div>
                        <div style="text-align:right">
-                         <small>Public: ${utils ? utils.escapeHtml(p.publicCode) : p.publicCode}</small><br>
-                         <small>Creado: ${new Date(p.createdAt).toLocaleString()}</small>
+                         <small>Public: ${utils ? utils.escapeHtml(p.public_code) : p.public_code}</small><br>
+                         <small>Creado: ${new Date(p.created_at).toLocaleString()}</small>
                        </div>`;
             div.addEventListener('click', () => {
                 currentSelectedPatientId = p.id;
                 // quitar selección previa y marcar el nuevo
                 patientListEl.querySelectorAll('.patient-item').forEach(el => el.classList.remove('selected'));
                 div.classList.add('selected');
-                showPatientDetail(p.id);
+                showPatientDetail(p.id, p);
             });
             patientListEl.appendChild(div);
         });
@@ -115,10 +123,58 @@
     /* ---------------------------
        Show patient detail (medico) with companion fields optional
        --------------------------- */
-    function showPatientDetail(patientId) {
+    async function showPatientDetail(patientId, cachedRaw) {
         const session = auth && auth.currentSession ? auth.currentSession() : null;
         const role = session ? session.role : null;
-        const p = (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === patientId) : null);
+
+        // Usar caché si viene del click, si no buscar en la API
+        let raw = cachedRaw || null;
+        if (!raw) {
+            try {
+                const api = window.eseb && window.eseb.api;
+                if (api) {
+                    const list = await api.getAllPatients();
+                    raw = list.find(x => x.id === patientId) || null;
+                }
+            } catch (e) { /* safe */ }
+        }
+
+        // Normalizar snake_case → camelCase para que el resto del código no cambie
+        const p = raw ? {
+            id: raw.id,
+            internalId: raw.internal_id || raw.internalId || '',
+            publicCode: raw.public_code || raw.publicCode || '',
+            name: raw.name || '',
+            doc: raw.doc_number || raw.doc || null,
+            phone: raw.phone || null,
+            reason: raw.reason || '',
+            notes: raw.notes || null,
+            allergies: raw.allergies || null,
+            bloodType: raw.blood_type || raw.bloodType || null,
+            triageLevel: raw.triage_level || raw.triageLevel || null,
+            companionName: raw.companion_name || raw.companionName || null,
+            companionPhone: raw.companion_phone || raw.companionPhone || null,
+            companionRelation: raw.companion_relation || raw.companionRelation || null,
+            arrived: raw.arrived || false,
+            arrivedAt: raw.arrived_at || raw.arrivedAt || null,
+            admittedAt: raw.admitted_at || raw.admittedAt || null,
+            dischargedAt: raw.discharged_at || raw.dischargedAt || null,
+            assignedRoom: raw.assigned_room || raw.assignedRoom || null,
+            assignedBed: raw.assigned_bed || raw.assignedBed || null,
+            attending: raw.attending_name || raw.attending || null,
+            attendingId: raw.attending_id || raw.attendingId || null,
+            shareWithCompanion: raw.share_with_companion || raw.shareWithCompanion || false,
+            finalDiagnosis: raw.final_diagnosis || raw.finalDiagnosis || null,
+            shareDiagnosis: raw.share_diagnosis || raw.shareDiagnosis || false,
+            createdAt: raw.created_at || raw.createdAt || null,
+            procedures: (raw.procedures || []).map(pr => ({
+                id: pr.id,
+                desc: pr.description || pr.desc || '',
+                performedBy: pr.performed_by || pr.performedBy || '',
+                time: pr.created_at || pr.time || null,
+            })),
+        } : null;
+
         if (!p) {
             if (patientDetailEl) patientDetailEl.innerHTML = '<div class="muted">Paciente no encontrado</div>';
             return;
@@ -130,7 +186,7 @@
         // If role is admin, render admin-specific view (table handled elsewhere)
         if (role === 'admin') {
             // open detailed modal for admin instead of full editable right panel
-            openAdminPatientDetailModal(patientId);
+            openAdminPatientDetailModal(patientId, p);
             return;
         }
 
@@ -270,10 +326,8 @@
         // Companion save handler (validation and real-time update)
         const btnSaveComp = document.getElementById('btn-save-companion');
         if (btnSaveComp) {
-            btnSaveComp.addEventListener('click', () => {
-                // re-evaluate current state
-                const latest = patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === p.id) : p;
-                if (latest && latest.dischargedAt && auth && auth.currentSession && auth.currentSession().role === 'medico') {
+            btnSaveComp.addEventListener('click', async () => {
+                if (p.dischargedAt && role === 'medico') {
                     showNotEditableForDischarged();
                     return;
                 }
@@ -289,42 +343,30 @@
                     return;
                 }
 
-                // Save and ensure companion info is propagated in real-time
-                let updatedPatient = null;
-                if (patientsApi && patientsApi.updatePatient) {
-                    try {
-                        updatedPatient = patientsApi.updatePatient(p.id, {
-                            companionName: compName,
-                            companionPhone: compPhone,
-                            companionRelation: compRel
-                        }, { action: 'update_companion', details: { companionName: compName, companionPhone: compPhone, companionRelation: compRel } });
-                    } catch (e) {
-                        console.warn('Error actualizando acompañante', e);
+                try {
+                    const api = window.eseb && window.eseb.api;
+                    if (api) {
+                        await api.updatePatient(p.id, {
+                            companion_name: compName,
+                            companion_phone: compPhone,
+                            companion_relation: compRel
+                        });
                     }
+                    alert('Información del acompañante guardada correctamente.');
+                    window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: p.id } }));
+                    await showPatientDetail(p.id);
+                    await renderPatientList(searchInput ? searchInput.value.trim() : '');
+                } catch (e) {
+                    alert('Error guardando acompañante: ' + e.message);
                 }
-
-                alert('Información del acompañante guardada correctamente.');
-
-                // Force-emission of patient updated so companion module (y otras vistas) se refresquen immediately
-                if (updatedPatient) {
-                    try {
-                        window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: updatedPatient }));
-                    } catch (e) { }
-                }
-
-                // re-render detail and list
-                showPatientDetail(p.id);
-                renderPatientList(searchInput ? searchInput.value.trim() : '');
             });
         }
 
         // Save diagnosis handler (nuevo)
         const btnSaveDx = document.getElementById('btn-save-dx');
         if (btnSaveDx) {
-            btnSaveDx.addEventListener('click', () => {
-                // re-evaluate current state
-                const latest = patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === p.id) : p;
-                if (latest && latest.dischargedAt && auth && auth.currentSession && auth.currentSession().role === 'medico') {
+            btnSaveDx.addEventListener('click', async () => {
+                if (p.dischargedAt && role === 'medico') {
                     showNotEditableForDischarged();
                     return;
                 }
@@ -332,27 +374,21 @@
                 const dxText = document.getElementById('inp-final-dx').value.trim() || null;
                 const shareDx = !!document.getElementById('chk-share-dx').checked;
 
-                let updatedPatient = null;
-                if (patientsApi && patientsApi.updatePatient) {
-                    try {
-                        updatedPatient = patientsApi.updatePatient(p.id, {
-                            finalDiagnosis: dxText,
-                            shareDiagnosis: shareDx
-                        }, { action: 'update_diagnosis', details: { finalDiagnosis: dxText, shareDiagnosis: shareDx } });
-                    } catch (e) {
-                        console.warn('Error guardando diagnóstico', e);
+                try {
+                    const api = window.eseb && window.eseb.api;
+                    if (api) {
+                        await api.updatePatient(p.id, {
+                            final_diagnosis: dxText,
+                            share_diagnosis: shareDx
+                        });
                     }
+                    alert('Diagnóstico final guardado correctamente.');
+                    window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: p.id } }));
+                    await showPatientDetail(p.id);
+                    await renderPatientList(searchInput ? searchInput.value.trim() : '');
+                } catch (e) {
+                    alert('Error guardando diagnóstico: ' + e.message);
                 }
-
-                alert('Diagnóstico final guardado correctamente.');
-
-                // trigger refresh UI (patientsApi.updatePatient already triggers eseb:patient:updated)
-                if (updatedPatient) {
-                    try { window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: updatedPatient })); } catch (e) { }
-                }
-
-                showPatientDetail(p.id);
-                renderPatientList(searchInput ? searchInput.value.trim() : '');
             });
         }
 
@@ -374,29 +410,28 @@
 
         const chk = document.getElementById('chk-share-proc');
         if (chk) {
-            chk.addEventListener('change', () => {
-                const latest = patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === p.id) : p;
-                if (latest && latest.dischargedAt && auth && auth.currentSession && auth.currentSession().role === 'medico') {
+            chk.addEventListener('change', async () => {
+                if (p.dischargedAt && role === 'medico') {
                     showNotEditableForDischarged();
-                    // Revert checkbox UI to reflect stored value
-                    if (document.getElementById('chk-share-proc')) document.getElementById('chk-share-proc').checked = !!latest.shareWithCompanion;
+                    if (document.getElementById('chk-share-proc')) document.getElementById('chk-share-proc').checked = !!p.shareWithCompanion;
                     return;
                 }
-
-                if (patientsApi && patientsApi.updatePatient) {
-                    patientsApi.updatePatient(p.id, { shareWithCompanion: !!chk.checked }, { action: 'toggle_share_procedures', details: { shareWithCompanion: !!chk.checked } });
+                try {
+                    const api = window.eseb && window.eseb.api;
+                    if (api) await api.updatePatient(p.id, { share_with_companion: !!chk.checked });
+                    window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: p.id } }));
+                    await showPatientDetail(p.id);
+                } catch (e) {
+                    console.warn('Error actualizando share_with_companion', e);
                 }
-                showPatientDetail(p.id);
             });
         }
 
         // add proc handler (with required fields validation)
         const btnAddProc = document.getElementById('btn-add-proc');
         if (btnAddProc) {
-            btnAddProc.addEventListener('click', () => {
-                // re-evaluate current state
-                const latest = patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === p.id) : p;
-                if (latest && latest.dischargedAt && auth && auth.currentSession && auth.currentSession().role === 'medico') {
+            btnAddProc.addEventListener('click', async () => {
+                if (p.dischargedAt && role === 'medico') {
                     showNotEditableForDischarged();
                     return;
                 }
@@ -408,30 +443,26 @@
 
                 if (!desc) return alert('Describe el procedimiento');
 
-                // validate required patient fields: arrived, room, bed, attending
-                const fresh = (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === p.id) : p);
                 const missing = [];
-                if (!fresh.arrived) missing.push('Confirmar llegada');
-                if (!fresh.assignedRoom) missing.push('Asignar habitación/sala');
-                if (!fresh.assignedBed) missing.push('Asignar camilla');
-                if (!fresh.attending) missing.push('Asignar personal que atiende');
+                if (!p.arrived) missing.push('Confirmar llegada');
+                if (!p.assignedRoom) missing.push('Asignar habitación/sala');
+                if (!p.assignedBed) missing.push('Asignar camilla');
+                if (!p.attending) missing.push('Asignar personal que atiende');
                 if (missing.length > 0) {
                     return alert('No es posible agregar procedimientos. Faltan campos obligatorios: ' + missing.join(', '));
                 }
 
-                // add procedure
-                if (proceduresApi && proceduresApi.addProcedure) {
-                    proceduresApi.addProcedure(p.id, desc, by);
-                } else if (patientsApi && patientsApi.addProcedure) {
-                    // backward compat: if patientsApi manages procedures
-                    patientsApi.addProcedure(p.id, desc, by);
+                try {
+                    const api = window.eseb && window.eseb.api;
+                    if (api) await api.addProcedure(p.id, desc, by);
+                    if (descEl) descEl.value = '';
+                    if (byEl) byEl.value = '';
+                    window.dispatchEvent(new CustomEvent('eseb:procedure:added', { detail: { patientId: p.id } }));
+                    await renderPatientList(searchInput ? searchInput.value.trim() : '');
+                    await showPatientDetail(p.id);
+                } catch (e) {
+                    alert('Error agregando procedimiento: ' + e.message);
                 }
-                if (descEl) descEl.value = '';
-                if (byEl) byEl.value = '';
-
-                // refresh UI
-                renderPatientList(searchInput ? searchInput.value.trim() : '');
-                showPatientDetail(p.id);
             });
         }
 
@@ -441,13 +472,11 @@
             btn.addEventListener('click', () => {
                 const procId = btn.getAttribute('data-proc-edit');
                 const pid = btn.getAttribute('data-proc-patient');
-                // guard: do not allow editing if discharged and user is medico
-                const latest = patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === pid) : null;
-                if (latest && latest.dischargedAt && auth && auth.currentSession && auth.currentSession().role === 'medico') {
+                if (p.dischargedAt && role === 'medico') {
                     showNotEditableForDischarged();
                     return;
                 }
-                openEditProcedureModal(pid, procId);
+                openEditProcedureModal(pid, procId, p.procedures);
             });
         });
     }
@@ -455,26 +484,20 @@
     /* ---------------------------
        MEDICO modal helpers
        --------------------------- */
-    function openArrivalModal(patientId) {
-        const p = (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === patientId) : null);
-        if (p && p.dischargedAt && auth && auth.currentSession && auth.currentSession().role === 'medico') {
-            showNotEditableForDischarged();
-            return;
+    async function openArrivalModal(patientId) {
+        try {
+            const api = window.eseb && window.eseb.api;
+            if (api) await api.updatePatient(patientId, { arrived: true, arrived_at: new Date().toISOString() });
+            window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: patientId } }));
+            await renderPatientList(searchInput ? searchInput.value.trim() : '');
+            await showPatientDetail(patientId);
+            alert('Llegada confirmada correctamente.');
+        } catch (e) {
+            alert('Error confirmando llegada: ' + e.message);
         }
-        if (patientsApi && patientsApi.updatePatient) patientsApi.updatePatient(patientId, { arrived: true, arrivedAt: utils.now() }, { action: 'confirm_arrival' });
-        renderPatientList(searchInput ? searchInput.value.trim() : '');
-        showPatientDetail(patientId);
-        alert('Llegada confirmada correctamente.');
     }
 
     function openAssignRoomModal(patientId) {
-        const p = (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === patientId) : null);
-        // guard
-        if (p && p.dischargedAt && auth && auth.currentSession && auth.currentSession().role === 'medico') {
-            showNotEditableForDischarged();
-            return;
-        }
-
         const rooms = roomsApi && roomsApi.getRooms ? roomsApi.getRooms() : [];
         let html = `<div class="ig-content-large"><h3>Asignar habitación / camilla</h3>
       <p class="muted">Selecciona una cama disponible.</p>
@@ -495,14 +518,16 @@
         setTimeout(() => {
             const assignBtns = document.querySelectorAll('[data-assign-bed]');
             assignBtns.forEach(btn => {
-                btn.addEventListener('click', () => {
+                btn.addEventListener('click', async () => {
                     const bedId = btn.getAttribute('data-assign-bed');
                     const roomLabel = btn.getAttribute('data-room');
                     try {
                         if (roomsApi && roomsApi.assignBed) roomsApi.assignBed(patientId, bedId);
-                        if (patientsApi && patientsApi.updatePatient) patientsApi.updatePatient(patientId, { assignedRoom: roomLabel, assignedBed: bedId }, { action: 'assign_bed', details: { room: roomLabel, bed: bedId } });
-                        renderPatientList(searchInput ? searchInput.value.trim() : '');
-                        showPatientDetail(patientId);
+                        const api = window.eseb && window.eseb.api;
+                        if (api) await api.updatePatient(patientId, { assigned_room: roomLabel, assigned_bed: bedId });
+                        window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: patientId } }));
+                        await renderPatientList(searchInput ? searchInput.value.trim() : '');
+                        await showPatientDetail(patientId);
                         if (modals && modals.closeModalLarge) modals.closeModalLarge();
                     } catch (err) {
                         alert(err.message || 'Error asignando cama');
@@ -539,29 +564,15 @@
         // Render initial modal
         if (modals && modals.openModalLarge) modals.openModalLarge(buildHtml());
 
-        // Handler that attaches to dynamic buttons; we'll call it on initial render and whenever doctors change
+        // Handler that attaches to dynamic buttons
         const attachHandlers = () => {
-            // assign buttons
             const assignBtns = document.querySelectorAll('[data-assign-doctor]');
             assignBtns.forEach(btn => {
-                // avoid double-binding by cloning node: remove and reattach fresh listener by replacing with same element (simple guard)
                 const newBtn = btn.cloneNode(true);
                 btn.parentNode.replaceChild(newBtn, btn);
-                newBtn.addEventListener('click', () => {
+                newBtn.addEventListener('click', async () => {
                     const docId = newBtn.getAttribute('data-assign-doctor');
-
-                    // guard again: patient might have been discharged while modal open
-                    const latest = patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === patientId) : null;
-                    if (latest && latest.dischargedAt && auth && auth.currentSession && auth.currentSession().role === 'medico') {
-                        showNotEditableForDischarged();
-                        // close modal
-                        window.removeEventListener('eseb:doctors:changed', doctorsChangedHandler);
-                        if (modals && modals.closeModalLarge) modals.closeModalLarge();
-                        return;
-                    }
-
                     try {
-                        // Ensure patient is removed from any other doctor first (prevent duplicates)
                         try {
                             const allDocs = (doctorsApi && doctorsApi.getDoctors) ? doctorsApi.getDoctors() : [];
                             allDocs.forEach(d => {
@@ -571,21 +582,20 @@
                             });
                         } catch (e) { /* safe */ }
 
-                        // Assign to selected doctor (doctorsApi may also handle removal, but we do this defensively)
                         if (doctorsApi && doctorsApi.assignPatientToDoctor) doctorsApi.assignPatientToDoctor(docId, patientId);
 
-                        // Update patient with attendingId + attending (reliable linking by id)
                         const doc = doctorsApi.getDoctors().find(d => d.id === docId);
-                        if (patientsApi && patientsApi.updatePatient) {
-                            patientsApi.updatePatient(patientId, {
-                                attendingId: doc.id,
-                                attending: doc.name
-                            }, { action: 'assign_staff', details: { staffId: doc.id, staffName: doc.name } });
+                        const api = window.eseb && window.eseb.api;
+                        if (api && doc) {
+                            await api.updatePatient(patientId, {
+                                attending_id: doc.id,
+                                attending_name: doc.name
+                            });
                         }
 
-                        renderPatientList(searchInput ? searchInput.value.trim() : '');
-                        showPatientDetail(patientId);
-                        // cleanup listener and close modal
+                        window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: patientId } }));
+                        await renderPatientList(searchInput ? searchInput.value.trim() : '');
+                        await showPatientDetail(patientId);
                         window.removeEventListener('eseb:doctors:changed', doctorsChangedHandler);
                         if (modals && modals.closeModalLarge) modals.closeModalLarge();
                     } catch (err) {
@@ -597,85 +607,56 @@
 
         // Handler to refresh modal content when doctors change
         const doctorsChangedHandler = () => {
-            // if modal is open, re-render content and reattach handlers
             try {
                 const modalContent = document.getElementById('modal-view-content');
                 const modalView = document.getElementById('modal-view');
                 if (modalView && !modalView.classList.contains('hidden') && modalContent) {
                     modalContent.innerHTML = buildHtml();
-                    // small timeout to wait DOM to be replaced
                     setTimeout(() => attachHandlers(), 10);
                 } else {
-                    // if modal closed, remove listener defensively
                     window.removeEventListener('eseb:doctors:changed', doctorsChangedHandler);
                 }
             } catch (e) { }
         };
 
-        // initial attach
         setTimeout(() => {
             attachHandlers();
-            // listen for doctor changes to refresh counts in real-time
             window.addEventListener('eseb:doctors:changed', doctorsChangedHandler);
         }, 10);
     }
 
-    function openAdmitModal(patientId) {
-        const p = (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === patientId) : null);
-        if (p && p.dischargedAt && auth && auth.currentSession && auth.currentSession().role === 'medico') {
-            showNotEditableForDischarged();
-            return;
+    async function openAdmitModal(patientId) {
+        try {
+            const api = window.eseb && window.eseb.api;
+            if (api) await api.updatePatient(patientId, { admitted_at: new Date().toISOString() });
+            window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: patientId } }));
+            await renderPatientList(searchInput ? searchInput.value.trim() : '');
+            await showPatientDetail(patientId);
+            alert('Ingreso marcado correctamente.');
+        } catch (e) {
+            alert('Error marcando ingreso: ' + e.message);
         }
-        if (patientsApi && patientsApi.updatePatient) patientsApi.updatePatient(patientId, { admittedAt: utils.now() }, { action: 'mark_admit' });
-        renderPatientList(searchInput ? searchInput.value.trim() : '');
-        showPatientDetail(patientId);
-        alert('Ingreso marcado correctamente.');
     }
 
-    function openDischargeModal(patientId) {
-        const p = (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === patientId) : null);
-        if (p && p.dischargedAt) {
-            alert('Este paciente ya tiene un egreso registrado.');
-            return;
+    async function openDischargeModal(patientId) {
+        try {
+            const api = window.eseb && window.eseb.api;
+            if (api) await api.updatePatient(patientId, {
+                discharged_at: new Date().toISOString(),
+                attending_name: null,
+                attending_id: null
+            });
+            window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: patientId } }));
+            await renderPatientList(searchInput ? searchInput.value.trim() : '');
+            await showPatientDetail(patientId);
+            alert('Egreso confirmado correctamente.');
+        } catch (e) {
+            alert('Error marcando egreso: ' + e.message);
         }
-
-        // free bed
-        if (p && p.assignedBed) {
-            if (roomsApi && roomsApi.releaseBed) roomsApi.releaseBed(p.assignedBed);
-        }
-
-        // remove from doctor
-        if (p) {
-            const docs = doctorsApi && doctorsApi.getDoctors ? doctorsApi.getDoctors() : [];
-            let doc = null;
-            if (p.attendingId) doc = docs.find(d => d.id === p.attendingId);
-            if (!doc && p.attending) doc = docs.find(d => d.name === p.attending);
-            if (doc && doctorsApi && doctorsApi.removePatientFromDoctor) {
-                try { doctorsApi.removePatientFromDoctor(doc.id, patientId); } catch (e) { /* safe */ }
-            }
-        }
-
-        if (patientsApi && patientsApi.updatePatient) {
-            patientsApi.updatePatient(patientId, { dischargedAt: utils.now(), attending: null, attendingId: null }, { action: 'mark_discharge' });
-        }
-
-        renderPatientList(searchInput ? searchInput.value.trim() : '');
-        showPatientDetail(patientId);
-        alert('Egreso confirmado correctamente.');
     }
 
-    function openEditProcedureModal(patientId, procedureId) {
-        const patients = patientsApi && patientsApi.getPatients ? patientsApi.getPatients() : [];
-        const p = patients.find(x => x.id === patientId);
-        if (!p) return alert('Paciente no encontrado');
-
-        // guard: if discharged and user is medico block
-        if (p.dischargedAt && auth && auth.currentSession && auth.currentSession().role === 'medico') {
-            showNotEditableForDischarged();
-            return;
-        }
-
-        const pr = (p.procedures || []).find(x => x.id === procedureId);
+    function openEditProcedureModal(patientId, procedureId, procedures) {
+        const pr = (procedures || []).find(x => x.id === procedureId);
         if (!pr) return alert('Procedimiento no encontrado');
 
         const html = `<div class="ig-content-large">
@@ -701,20 +682,19 @@
         setTimeout(() => {
             const saveBtn = document.getElementById('btn-save-proc-edit');
             const cancelBtn = document.getElementById('btn-cancel-proc-edit');
-            if (saveBtn) saveBtn.addEventListener('click', () => {
-                // guard again before saving
-                const latest = patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === patientId) : null;
-                if (latest && latest.dischargedAt && auth && auth.currentSession && auth.currentSession().role === 'medico') {
-                    showNotEditableForDischarged();
-                    if (modals && modals.closeModalLarge) modals.closeModalLarge();
-                    return;
-                }
-
+            if (saveBtn) saveBtn.addEventListener('click', async () => {
                 const newDesc = document.getElementById('edit-proc-desc').value.trim();
                 const newBy = document.getElementById('edit-proc-by').value || (auth && auth.currentSession ? (auth.currentSession().username || 'staff') : 'staff');
                 if (!newDesc) return alert('La descripción no puede estar vacía');
-                if (proceduresApi && proceduresApi.editProcedure) proceduresApi.editProcedure(patientId, procedureId, newDesc, newBy);
-                if (modals && modals.closeModalLarge) modals.closeModalLarge();
+                try {
+                    if (proceduresApi && proceduresApi.editProcedure) proceduresApi.editProcedure(patientId, procedureId, newDesc, newBy);
+                    if (modals && modals.closeModalLarge) modals.closeModalLarge();
+                    window.dispatchEvent(new CustomEvent('eseb:procedure:edited', { detail: { patientId } }));
+                    await renderPatientList(searchInput ? searchInput.value.trim() : '');
+                    await showPatientDetail(patientId);
+                } catch (e) {
+                    alert('Error editando procedimiento: ' + e.message);
+                }
             });
             if (cancelBtn) cancelBtn.addEventListener('click', () => { if (modals && modals.closeModalLarge) modals.closeModalLarge(); });
         }, 10);
@@ -723,11 +703,39 @@
     /* ---------------------------
        ADMIN: render table with full data
        --------------------------- */
-    function renderAdminTable() {
-        // Right panel becomes admin table
+    async function renderAdminTable() {
         if (!patientDetailEl) return;
-        patientDetailEl.innerHTML = ''; // clear any detail
-        const patients = (patientsApi && patientsApi.getPatients ? patientsApi.getPatients() : []);
+        patientDetailEl.innerHTML = '';
+
+        let rawList = [];
+        try {
+            const api = window.eseb && window.eseb.api;
+            if (api) rawList = await api.getAllPatients();
+        } catch (e) {
+            console.warn('Error cargando pacientes para tabla admin:', e.message);
+        }
+
+        // Normalizar para la tabla
+        const patients = rawList.map(raw => ({
+            id: raw.id,
+            internalId: raw.internal_id || raw.internalId || '',
+            publicCode: raw.public_code || raw.publicCode || '',
+            name: raw.name || '',
+            doc: raw.doc_number || raw.doc || null,
+            phone: raw.phone || null,
+            reason: raw.reason || '',
+            companionName: raw.companion_name || raw.companionName || null,
+            companionPhone: raw.companion_phone || raw.companionPhone || null,
+            companionRelation: raw.companion_relation || raw.companionRelation || null,
+            arrived: raw.arrived || false,
+            arrivedAt: raw.arrived_at || raw.arrivedAt || null,
+            admittedAt: raw.admitted_at || raw.admittedAt || null,
+            dischargedAt: raw.discharged_at || raw.dischargedAt || null,
+            assignedRoom: raw.assigned_room || raw.assignedRoom || null,
+            assignedBed: raw.assigned_bed || raw.assignedBed || null,
+            attending: raw.attending_name || raw.attending || null,
+            procedures: raw.procedures || [],
+        }));
 
         const table = document.createElement('table');
         table.className = 'admin-table';
@@ -748,7 +756,7 @@
         <td>${utils ? utils.escapeHtml(p.internalId) : p.internalId}</td>
         <td>${utils ? utils.escapeHtml(p.publicCode) : p.publicCode}</td>
         <td>${p.dischargedAt ? 'Egresado' : 'Activo'}</td>
-        <td>${p.arrived ? new Date(p.arrivedAt).toLocaleString() : '-'}</td>
+        <td>${p.arrived && p.arrivedAt ? new Date(p.arrivedAt).toLocaleString() : '-'}</td>
         <td>${p.admittedAt ? new Date(p.admittedAt).toLocaleString() : '-'}</td>
         <td>${p.dischargedAt ? new Date(p.dischargedAt).toLocaleString() : '-'}</td>
         <td>${utils ? utils.escapeHtml(p.attending || '-') : (p.attending || '-')}</td>
@@ -766,19 +774,19 @@
         wrapper.appendChild(table);
         patientDetailEl.appendChild(wrapper);
 
-        // bind actions
         const viewBtns = patientDetailEl.querySelectorAll('[data-admin-view]');
         viewBtns.forEach(btn => {
             btn.addEventListener('click', () => {
                 const pid = btn.getAttribute('data-admin-view');
-                openAdminPatientDetailModal(pid);
+                const p = patients.find(x => x.id === pid);
+                openAdminPatientDetailModal(pid, p);
             });
         });
         const auditBtns = patientDetailEl.querySelectorAll('[data-admin-audit]');
         auditBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
+            btn.addEventListener('click', async () => {
                 const pid = btn.getAttribute('data-admin-audit');
-                openAdminAuditModal(pid);
+                await openAdminAuditModal(pid);
             });
         });
     }
@@ -786,8 +794,7 @@
     /* ---------------------------
        ADMIN modals
        --------------------------- */
-    function openAdminPatientDetailModal(patientId) {
-        const p = (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === patientId) : null);
+    function openAdminPatientDetailModal(patientId, p) {
         if (!p) return alert('Paciente no encontrado');
 
         let html = `<div style="max-width:900px">
@@ -800,7 +807,7 @@
         <div><strong>Estado</strong><div class="muted">${patientStatus(p)}</div></div>
         <div><strong>Hab / Camilla</strong><div class="muted">${utils ? utils.escapeHtml(p.assignedRoom || '-') : (p.assignedRoom || '-')} / ${utils ? utils.escapeHtml(p.assignedBed || '-') : (p.assignedBed || '-')}</div></div>
         <div><strong>Atiende</strong><div class="muted">${utils ? utils.escapeHtml(p.attending || '-') : (p.attending || '-')}</div></div>
-        <div><strong>Llegada</strong><div class="muted">${p.arrived ? new Date(p.arrivedAt).toLocaleString() : '-'}</div></div>
+        <div><strong>Llegada</strong><div class="muted">${p.arrived && p.arrivedAt ? new Date(p.arrivedAt).toLocaleString() : '-'}</div></div>
         <div><strong>Ingreso</strong><div class="muted">${p.admittedAt ? new Date(p.admittedAt).toLocaleString() : '-'}</div></div>
         <div style="grid-column:1/3"><strong>Notas</strong><div class="muted">${utils ? utils.escapeHtml(p.notes || '-') : (p.notes || '-')}</div></div>
         <div style="grid-column:1/3"><strong>Acompañante</strong><div class="muted">${p.companionName ? `${utils ? utils.escapeHtml(p.companionName) : p.companionName} · ${utils ? utils.escapeHtml(p.companionRelation || '') : (p.companionRelation || '')} · ${utils ? utils.escapeHtml(p.companionPhone || '') : (p.companionPhone || '')}` : '-'}</div></div>
@@ -817,7 +824,10 @@
         } else {
             html += `<div style="display:flex;flex-direction:column;gap:8px">`;
             p.procedures.forEach(pr => {
-                html += `<div style="padding:8px;border-radius:8px;border:1px solid rgba(0,0,0,0.04)"><strong>${utils ? utils.escapeHtml(pr.desc) : pr.desc}</strong><div class="muted">Realizado por: ${utils ? utils.escapeHtml(pr.performedBy || '---') : (pr.performedBy || '---')} · ${new Date(pr.time).toLocaleString()}</div></div>`;
+                const desc = pr.description || pr.desc || '';
+                const performedBy = pr.performed_by || pr.performedBy || '---';
+                const time = pr.created_at || pr.time || null;
+                html += `<div style="padding:8px;border-radius:8px;border:1px solid rgba(0,0,0,0.04)"><strong>${utils ? utils.escapeHtml(desc) : desc}</strong><div class="muted">Realizado por: ${utils ? utils.escapeHtml(performedBy) : performedBy} · ${time ? new Date(time).toLocaleString() : '-'}</div></div>`;
             });
             html += `</div>`;
         }
@@ -826,15 +836,22 @@
         if (modals && modals.openModalLarge) modals.openModalLarge(html);
     }
 
-    function openAdminAuditModal(patientId) {
-        const logs = (audit && audit.getAudit ? audit.getAudit() : []).filter(l => {
-            if (l.patientId && l.patientId === patientId) return true;
-            try {
-                const json = JSON.stringify(l.details || '');
-                if (json && json.indexOf(patientId) !== -1) return true;
-            } catch (e) { }
-            return false;
-        });
+    async function openAdminAuditModal(patientId) {
+        let logs = [];
+        try {
+            const api = window.eseb && window.eseb.api;
+            if (api) logs = await api.getAuditByPatient(patientId);
+        } catch (e) {
+            // fallback a audit local si falla la API
+            logs = (audit && audit.getAudit ? audit.getAudit() : []).filter(l => {
+                if (l.patientId && l.patientId === patientId) return true;
+                try {
+                    const json = JSON.stringify(l.details || '');
+                    if (json && json.indexOf(patientId) !== -1) return true;
+                } catch (ex) { }
+                return false;
+            });
+        }
 
         let html = `<div style="max-width:1000px">
       <h3>Historial de auditoría - paciente</h3>
@@ -845,10 +862,10 @@
         else {
             html += `<table style="width:100%;border-collapse:collapse"><thead><tr><th>Hora</th><th>Acción</th><th>Usuario</th><th>Detalles</th></tr></thead><tbody>`;
             logs.forEach(l => {
-                const time = l.time ? new Date(l.time).toLocaleString() : (l.timestamp ? new Date(l.timestamp).toLocaleString() : '-');
+                const time = l.created_at ? new Date(l.created_at).toLocaleString() : (l.time ? new Date(l.time).toLocaleString() : '-');
                 const action = utils ? utils.escapeHtml(l.action || '-') : (l.action || '-');
-                const user = utils ? utils.escapeHtml(l.user || '-') : (l.user || '-');
-                const details = utils ? utils.escapeHtml(JSON.stringify(l.details || l || {}).slice(0, 1000)) : JSON.stringify(l.details || l || {}).slice(0, 1000);
+                const user = utils ? utils.escapeHtml(l.user || l.staff_id || '-') : (l.user || l.staff_id || '-');
+                const details = utils ? utils.escapeHtml(JSON.stringify(l.details || {}).slice(0, 1000)) : JSON.stringify(l.details || {}).slice(0, 1000);
                 html += `<tr style="border-bottom:1px solid rgba(0,0,0,0.04)"><td style="vertical-align:top">${time}</td><td style="vertical-align:top">${action}</td><td style="vertical-align:top">${user}</td><td style="vertical-align:top"><pre style="white-space:pre-wrap;word-break:break-word;margin:0">${details}</pre></td></tr>`;
             });
             html += `</tbody></table>`;
@@ -861,15 +878,16 @@
     /* ---------------------------
        Filter button UI
        --------------------------- */
-    function setListFilter(mode) {
+    async function setListFilter(mode) {
         currentListFilter = mode;
         updateFilterButtonsUI();
-        renderPatientList(searchInput ? searchInput.value.trim() : '');
+        await renderPatientList(searchInput ? searchInput.value.trim() : '');
         const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
         if (sess && sess.role === 'admin' && panelStaff && !panelStaff.classList.contains('hidden')) {
-            renderAdminTable();
+            await renderAdminTable();
         }
     }
+
     function updateFilterButtonsUI() {
         if (!btnViewActive || !btnViewEgresados) return;
         btnViewActive.classList.remove('active');
@@ -878,68 +896,66 @@
         if (currentListFilter === 'discharged') btnViewEgresados.classList.add('active');
     }
 
-
-    function handleLogoutUI() {
+    async function handleLogoutUI() {
         if (modals && typeof modals.closeModalLarge === 'function') modals.closeModalLarge();
         if (patientDetailEl) patientDetailEl.innerHTML = '<div class="muted">Selecciona un paciente para ver detalles</div>';
         if (patientListEl) patientListEl.innerHTML = '';
         if (searchInput) searchInput.value = '';
-        try { renderPatientList(); } catch (e) { }
+        try { await renderPatientList(); } catch (e) { }
     }
 
     /* ---------------------------
        Init: wire handlers and events
        --------------------------- */
-    function init() {
+    async function init() {
         if (init._called) return;
         init._called = true;
-        if (btnSearch) btnSearch.addEventListener('click', () => renderPatientList(searchInput ? searchInput.value.trim() : ''));
-        if (searchInput) searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') renderPatientList(searchInput.value.trim()); });
+
+        if (btnSearch) btnSearch.addEventListener('click', async () => {
+            await renderPatientList(searchInput ? searchInput.value.trim() : '');
+        });
+        if (searchInput) searchInput.addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') await renderPatientList(searchInput.value.trim());
+        });
 
         if (btnViewActive) btnViewActive.addEventListener('click', () => setListFilter('active'));
         if (btnViewEgresados) btnViewEgresados.addEventListener('click', () => setListFilter('discharged'));
 
         // Listen to domain events to refresh UI
-        window.addEventListener('eseb:patient:created', () => {
-            renderPatientList(searchInput ? searchInput.value.trim() : '');
+        window.addEventListener('eseb:patient:created', async () => {
+            await renderPatientList(searchInput ? searchInput.value.trim() : '');
             const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
-            if (sess && sess.role === 'admin') renderAdminTable();
+            if (sess && sess.role === 'admin') await renderAdminTable();
         });
-        window.addEventListener('eseb:patient:updated', (ev) => {
-            renderPatientList(searchInput ? searchInput.value.trim() : '');
+        window.addEventListener('eseb:patient:updated', async (ev) => {
+            await renderPatientList(searchInput ? searchInput.value.trim() : '');
             const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
-            if (sess && sess.role === 'admin') renderAdminTable();
-            const detailWrap = patientDetailEl && patientDetailEl.querySelector ? patientDetailEl.querySelector('[data-patient-id]') : null;
-            if (detailWrap) {
-                const pid = detailWrap.getAttribute('data-patient-id');
-                const p = patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === pid) : null;
-                if (p) showPatientDetail(pid);
-            }
+            if (sess && sess.role === 'admin') await renderAdminTable();
         });
-        window.addEventListener('eseb:procedure:added', () => {
+        window.addEventListener('eseb:procedure:added', async () => {
             const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
-            if (sess && sess.role === 'admin') renderAdminTable();
-            renderPatientList(searchInput ? searchInput.value.trim() : '');
+            if (sess && sess.role === 'admin') await renderAdminTable();
+            await renderPatientList(searchInput ? searchInput.value.trim() : '');
         });
-        window.addEventListener('eseb:procedure:edited', () => {
+        window.addEventListener('eseb:procedure:edited', async () => {
             const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
-            if (sess && sess.role === 'admin') renderAdminTable();
-            renderPatientList(searchInput ? searchInput.value.trim() : '');
+            if (sess && sess.role === 'admin') await renderAdminTable();
+            await renderPatientList(searchInput ? searchInput.value.trim() : '');
         });
-        window.addEventListener('eseb:audit:changed', () => {
+        window.addEventListener('eseb:audit:changed', async () => {
             const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
-            if (sess && sess.role === 'admin') renderAdminTable();
+            if (sess && sess.role === 'admin') await renderAdminTable();
         });
 
         // storage event (cross-tab) refresh
-        window.addEventListener('eseb:storage', () => {
-            renderPatientList(searchInput ? searchInput.value.trim() : '');
+        window.addEventListener('eseb:storage', async () => {
+            await renderPatientList(searchInput ? searchInput.value.trim() : '');
             const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
-            if (sess && sess.role === 'admin') renderAdminTable();
+            if (sess && sess.role === 'admin') await renderAdminTable();
         });
 
         // initial render
-        renderPatientList();
+        await renderPatientList();
         const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
 
         // Mostrar nombre del usuario en el título del panel cuando esté disponible
@@ -954,7 +970,7 @@
         }
 
         if (sess && sess.role === 'admin') {
-            renderAdminTable();
+            await renderAdminTable();
         }
     }
 
@@ -966,19 +982,27 @@
         renderAdminTable
     };
 
-    window.addEventListener('load', () => {
+    window.addEventListener('load', async () => {
+        // Intento inmediato
         const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
-
         if (sess) {
-            if (typeof init === 'function') {
-                init();
-            } else if (window.eseb && window.eseb.staffPanel && typeof window.eseb.staffPanel.init === 'function') {
-                window.eseb.staffPanel.init();
-            } else {
-                console.warn("No se encontró init()");
-            }
-        } else {
-            console.warn("No hay sesión activa");
+            await init();
+            return;
         }
+
+        // Firebase puede tardar unos ms en restaurar la sesión — esperar hasta 3s
+        let intentos = 0;
+        const intervalo = setInterval(async () => {
+            intentos++;
+            const s = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
+            if (s) {
+                clearInterval(intervalo);
+                await init();
+            } else if (intentos >= 15) {
+                clearInterval(intervalo);
+                console.warn('No hay sesión activa después de esperar');
+                window.location.href = 'login.html';
+            }
+        }, 200);
     });
 })();

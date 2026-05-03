@@ -28,8 +28,8 @@
     // ensure defaults
     if (!read(STORAGE_KEYS.USERS)) write(STORAGE_KEYS.USERS, []);
     if (!read(STORAGE_KEYS.PATIENTS)) write(STORAGE_KEYS.PATIENTS, []);
-    if (!read(STORAGE_KEYS.ROOMS)) write(STORAGE_KEYS.ROOMS, null); // rooms initialization delegated
-    if (!read(STORAGE_KEYS.DOCTORS)) write(STORAGE_KEYS.DOCTORS, null);
+    if (!read(STORAGE_KEYS.ROOMS)) write(STORAGE_KEYS.ROOMS, []); // rooms initialization delegated
+    if (!read(STORAGE_KEYS.DOCTORS)) write(STORAGE_KEYS.DOCTORS, []);
     if (!read(STORAGE_KEYS.AUDIT)) write(STORAGE_KEYS.AUDIT, []);
 
     window.eseb = window.eseb || {};

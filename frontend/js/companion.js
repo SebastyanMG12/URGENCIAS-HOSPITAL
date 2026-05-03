@@ -23,9 +23,19 @@
         }
     }
 
-    function showCompanionInModal(code) {
+    async function showCompanionInModal(code) {
         if (!code) return;
-        const p = patientsApi && patientsApi.findByPublicCode ? patientsApi.findByPublicCode(code) : (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.publicCode === code) : null);
+        let p = null;
+        try {
+            const api = window.eseb && window.eseb.api;
+            if (api) {
+                p = await api.getPatientByPublicCode(code);
+            }
+        } catch (err) {
+            const notFoundHtml = `<div class="ig-content"><h3>Código no encontrado</h3><p class="muted">El código ingresado no corresponde a ningún paciente.</p></div>`;
+            if (modals && modals.openCompanionContent) modals.openCompanionContent(notFoundHtml);
+            return;
+        } 
         currentShownCode = code;
 
         if (!p) {
@@ -93,11 +103,11 @@
 
     // Companion form submit -> abrir modal grande con contenido
     if (formCompanion) {
-        formCompanion.addEventListener('submit', (ev) => {
+        formCompanion.addEventListener('submit', async (ev) => {
             ev.preventDefault();
             const code = (compInput && compInput.value) ? compInput.value.trim() : '';
             if (!code) return;
-            showCompanionInModal(code);
+            await showCompanionInModal(code);
         });
     }
 
