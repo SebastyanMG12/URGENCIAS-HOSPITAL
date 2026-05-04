@@ -54,7 +54,7 @@ async function getAuthToken() {
         }
       });
       // Timeout de seguridad: 3 segundos
-      setTimeout(() => resolve(null), 3000);
+      setTimeout(() => resolve(null), 5000);
     });
   } catch (e) {
     return null;
@@ -135,6 +135,30 @@ async function getAuditByPatient(patientId) {
   return apiFetchAuth(`/staff/audit/${patientId}`);
 }
 
+// ── Rooms ──────────────────────────────────────────────
+
+async function getRooms() {
+  return apiFetchAuth("/rooms/");
+}
+
+async function assignBed(bedId, patientId) {
+  return apiFetchAuth(`/rooms/beds/${bedId}/assign?patient_id=${patientId}`, {
+    method: "PATCH",
+  });
+}
+
+async function releaseBed(bedId) {
+  return apiFetchAuth(`/rooms/beds/${bedId}/release`, {
+    method: "PATCH",
+  });
+}
+
+// ── Doctors ────────────────────────────────────────────
+
+async function getDoctors() {
+  return apiFetchAuth("/doctors/");
+}
+
 window.eseb = window.eseb || {};
 window.eseb.api = {
   registerPatient,
@@ -148,4 +172,8 @@ window.eseb.api = {
   getAllStaff,
   getAuditLogs,
   getAuditByPatient,
+  getRooms,
+  assignBed,
+  releaseBed,
+  getDoctors,
 };

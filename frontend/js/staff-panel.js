@@ -129,12 +129,30 @@
 
         // Usar caché si viene del click, si no buscar en la API
         let raw = cachedRaw || null;
+
+        // Siempre cargar procedimientos frescos desde la API
+        if (raw) {
+            try {
+                const api = window.eseb && window.eseb.api;
+                if (api) {
+                    const procs = await api.getProcedures(patientId);
+                    raw = { ...raw, procedures: procs };
+                }
+            } catch (e) { raw.procedures = []; }
+        }
+
         if (!raw) {
             try {
                 const api = window.eseb && window.eseb.api;
                 if (api) {
                     const list = await api.getAllPatients();
                     raw = list.find(x => x.id === patientId) || null;
+                    if (raw) {
+                        try {
+                            const procs = await api.getProcedures(patientId);
+                            raw.procedures = procs;
+                        } catch (e) { raw.procedures = []; }
+                    }
                 }
             } catch (e) { /* safe */ }
         }
@@ -484,6 +502,68 @@
     /* ---------------------------
        MEDICO modal helpers
        --------------------------- */
+    async function openAssignRoomModal(patientId) {
+        let rooms = [];
+        try {
+            const api = window.eseb && window.eseb.api;
+            if (api) rooms = await api.getRooms();
+        } catch (e) {
+            alert('Error cargando habitaciones: ' + e.message);
+            return;
+        }
+
+        let html = `<div class="ig-content-large"><h3>Asignar habitación / camilla</h3>
+        <p class="muted">Selecciona una cama disponible.</p>
+        <div class="room-list">`;
+
+        rooms.forEach(room => {
+            html += `<div class="room-item"><div><strong>Hab ${utils ? utils.escapeHtml(room.room_label) : room.room_label}</strong> <small class="muted">Camas:</small></div><div>`;
+            room.beds.forEach(b => {
+                if (b.occupied_by && b.occupied_by !== patientId) {
+                    html += `<span style="margin-left:8px"><span class="badge">Ocupada</span> <small class="muted">${utils ? utils.escapeHtml(b.label) : b.label}</small></span>`;
+                } else if (b.occupied_by && b.occupied_by === patientId) {
+                    html += `<span style="margin-left:8px"><button class="btn" data-assign-bed="${b.id}" data-room="${utils ? utils.escapeHtml(room.room_label) : room.room_label}" data-bed-label="${utils ? utils.escapeHtml(b.label) : b.label}" style="background:#2563eb;color:#fff;border-color:#2563eb">Reasignar ${utils ? utils.escapeHtml(b.label) : b.label}</button></span>`;
+                } else {
+                    html += `<button class="btn" data-assign-bed="${b.id}" data-room="${utils ? utils.escapeHtml(room.room_label) : room.room_label}" data-bed-label="${utils ? utils.escapeHtml(b.label) : b.label}" style="margin-left:8px">Asignar ${utils ? utils.escapeHtml(b.label) : b.label}</button>`;
+                }
+            });
+            html += `</div></div>`;
+        });
+
+        html += `</div><div style="margin-top:12px"><button class="btn ghost" id="btn-cancel-assign-room">Cerrar</button></div></div>`;
+        if (modals && modals.openModalLarge) modals.openModalLarge(html);
+
+        setTimeout(() => {
+            document.querySelectorAll('[data-assign-bed]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const bedId = btn.getAttribute('data-assign-bed');
+                    const roomLabel = btn.getAttribute('data-room');
+                    try {
+                        const api = window.eseb && window.eseb.api;
+                        if (api) {
+                            await api.assignBed(bedId, patientId);
+                            const bedLabel = btn.getAttribute('data-bed-label');
+                            await api.updatePatient(patientId, {
+                                assigned_room: roomLabel,
+                                assigned_bed: bedLabel || bedId
+                            });
+                        }
+                        window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: patientId } }));
+                        await renderPatientList(searchInput ? searchInput.value.trim() : '');
+                        await showPatientDetail(patientId);
+                        if (modals && modals.closeModalLarge) modals.closeModalLarge();
+                    } catch (err) {
+                        alert(err.message || 'Error asignando cama');
+                    }
+                });
+            });
+            const cancel = document.getElementById('btn-cancel-assign-room');
+            if (cancel) cancel.addEventListener('click', () => {
+                if (modals && modals.closeModalLarge) modals.closeModalLarge();
+            });
+        }, 10);
+    }
+
     async function openArrivalModal(patientId) {
         try {
             const api = window.eseb && window.eseb.api;
@@ -497,49 +577,7 @@
         }
     }
 
-    function openAssignRoomModal(patientId) {
-        const rooms = roomsApi && roomsApi.getRooms ? roomsApi.getRooms() : [];
-        let html = `<div class="ig-content-large"><h3>Asignar habitación / camilla</h3>
-      <p class="muted">Selecciona una cama disponible.</p>
-      <div class="room-list">`;
-        rooms.forEach(room => {
-            html += `<div class="room-item"><div><strong>Hab ${utils ? utils.escapeHtml(room.roomLabel) : room.roomLabel}</strong> <small class="muted">Camas:</small></div><div>`;
-            room.beds.forEach(b => {
-                if (b.occupiedBy) {
-                    html += `<span style="margin-left:8px"><span class="badge">Ocupada</span> <small class="muted">${utils ? utils.escapeHtml(b.label) : b.label}</small></span>`;
-                } else {
-                    html += `<button class="btn" data-assign-bed="${utils ? utils.escapeHtml(b.id) : b.id}" data-room="${utils ? utils.escapeHtml(room.roomLabel) : room.roomLabel}" style="margin-left:8px">Asignar ${utils ? utils.escapeHtml(b.label) : b.label}</button>`;
-                }
-            });
-            html += `</div></div>`;
-        });
-        html += `</div><div style="margin-top:12px"><button class="btn ghost" id="btn-cancel-assign-room">Cerrar</button></div></div>`;
-        if (modals && modals.openModalLarge) modals.openModalLarge(html);
-        setTimeout(() => {
-            const assignBtns = document.querySelectorAll('[data-assign-bed]');
-            assignBtns.forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const bedId = btn.getAttribute('data-assign-bed');
-                    const roomLabel = btn.getAttribute('data-room');
-                    try {
-                        if (roomsApi && roomsApi.assignBed) roomsApi.assignBed(patientId, bedId);
-                        const api = window.eseb && window.eseb.api;
-                        if (api) await api.updatePatient(patientId, { assigned_room: roomLabel, assigned_bed: bedId });
-                        window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: patientId } }));
-                        await renderPatientList(searchInput ? searchInput.value.trim() : '');
-                        await showPatientDetail(patientId);
-                        if (modals && modals.closeModalLarge) modals.closeModalLarge();
-                    } catch (err) {
-                        alert(err.message || 'Error asignando cama');
-                    }
-                });
-            });
-            const cancel = document.getElementById('btn-cancel-assign-room');
-            if (cancel) cancel.addEventListener('click', () => { if (modals && modals.closeModalLarge) modals.closeModalLarge(); });
-        }, 10);
-    }
-
-    function openAssignDoctorModal(patientId) {
+    async function openAssignDoctorModal(patientId) {
         const p = (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === patientId) : null);
         // guard
         if (p && p.dischargedAt && auth && auth.currentSession && auth.currentSession().role === 'medico') {
@@ -548,23 +586,31 @@
         }
 
         // We'll build the modal content and attach a listener to eseb:doctors:changed
-        const buildHtml = () => {
-            const doctors = doctorsApi && doctorsApi.getDoctors ? doctorsApi.getDoctors() : [];
+        const buildHtml = (doctors) => {
             let html = `<div class="ig-content-large"><h3>Asignar personal (doctor/enfermero)</h3>
         <p class="muted">Selecciona el personal que atenderá (puede atender a varios pacientes).</p>
         <div class="doctor-list">`;
             doctors.forEach(doc => {
-                html += `<div class="doctor-item"><div><strong>${utils ? utils.escapeHtml(doc.name) : doc.name}</strong><div class="muted">Atendiendo: ${doc.patients ? doc.patients.length : 0} pacientes</div></div>
-                  <div><button class="btn" data-assign-doctor="${utils ? utils.escapeHtml(doc.id) : doc.id}">Asignar</button></div></div>`;
+                html += `<div class="doctor-item"><div><strong>${utils ? utils.escapeHtml(doc.name) : doc.name}</strong><div class="muted">Atendiendo: ${doc.patient_count || 0} pacientes</div></div>
+                  <div><button class="btn" data-assign-doctor="${utils ? utils.escapeHtml(doc.id) : doc.id}" data-assign-doctor-name="${utils ? utils.escapeHtml(doc.name) : doc.name}">Asignar</button></div></div>`;
             });
             html += `</div></div>`;
             return html;
         };
 
-        // Render initial modal
-        if (modals && modals.openModalLarge) modals.openModalLarge(buildHtml());
+        // Cargar médicos desde la API y renderizar
+        let doctorsList = [];
+        try {
+            const api = window.eseb && window.eseb.api;
+            if (api) doctorsList = await api.getDoctors();
+        } catch (e) {
+            alert('Error cargando personal médico: ' + e.message);
+            return;
+        }
+        if (modals && modals.openModalLarge) modals.openModalLarge(buildHtml(doctorsList));
 
         // Handler that attaches to dynamic buttons
+        let doctorsChangedHandler = () => { };
         const attachHandlers = () => {
             const assignBtns = document.querySelectorAll('[data-assign-doctor]');
             assignBtns.forEach(btn => {
@@ -573,23 +619,12 @@
                 newBtn.addEventListener('click', async () => {
                     const docId = newBtn.getAttribute('data-assign-doctor');
                     try {
-                        try {
-                            const allDocs = (doctorsApi && doctorsApi.getDoctors) ? doctorsApi.getDoctors() : [];
-                            allDocs.forEach(d => {
-                                if (d.patients && d.patients.includes(patientId) && d.id !== docId) {
-                                    if (doctorsApi && doctorsApi.removePatientFromDoctor) doctorsApi.removePatientFromDoctor(d.id, patientId);
-                                }
-                            });
-                        } catch (e) { /* safe */ }
-
-                        if (doctorsApi && doctorsApi.assignPatientToDoctor) doctorsApi.assignPatientToDoctor(docId, patientId);
-
-                        const doc = doctorsApi.getDoctors().find(d => d.id === docId);
+                        const docName = newBtn.getAttribute('data-assign-doctor-name');
                         const api = window.eseb && window.eseb.api;
-                        if (api && doc) {
+                        if (api) {
                             await api.updatePatient(patientId, {
-                                attending_id: doc.id,
-                                attending_name: doc.name
+                                attending_id: docId,
+                                attending_name: docName
                             });
                         }
 
@@ -603,20 +638,6 @@
                     }
                 });
             });
-        };
-
-        // Handler to refresh modal content when doctors change
-        const doctorsChangedHandler = () => {
-            try {
-                const modalContent = document.getElementById('modal-view-content');
-                const modalView = document.getElementById('modal-view');
-                if (modalView && !modalView.classList.contains('hidden') && modalContent) {
-                    modalContent.innerHTML = buildHtml();
-                    setTimeout(() => attachHandlers(), 10);
-                } else {
-                    window.removeEventListener('eseb:doctors:changed', doctorsChangedHandler);
-                }
-            } catch (e) { }
         };
 
         setTimeout(() => {
@@ -641,11 +662,21 @@
     async function openDischargeModal(patientId) {
         try {
             const api = window.eseb && window.eseb.api;
-            if (api) await api.updatePatient(patientId, {
+            if (!api) return;
+
+            // Obtener el bed_id actual del paciente para liberarlo
+            const patients = await api.getAllPatients();
+            const current = patients.find(p => p.id === patientId);
+
+            // Marcar egreso y limpiar asignaciones
+            await api.updatePatient(patientId, {
                 discharged_at: new Date().toISOString(),
                 attending_name: null,
-                attending_id: null
+                attending_id: null,
+                assigned_room: null,
+                assigned_bed: null,
             });
+
             window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: patientId } }));
             await renderPatientList(searchInput ? searchInput.value.trim() : '');
             await showPatientDetail(patientId);
@@ -664,13 +695,11 @@
       <p class="muted">Modifica la descripción o el responsable del procedimiento.</p>
       <div style="margin-top:10px" class="detail-card">
         <strong>Descripción</strong>
-        <input id="edit-proc-desc" value="${utils ? utils.escapeHtml(pr.desc) : pr.desc}" />
+        <input id="edit-proc-desc" value="${utils ? utils.escapeHtml(pr.description || pr.desc || '') : (pr.description || pr.desc || '')}" />
         <label style="display:block;margin-top:10px;margin-bottom:4px">Realizado por</label>
         <select id="edit-proc-by" class="ig-input">
           <option value="">¿Quien atendio?</option>
-          ${(doctorsApi && doctorsApi.getDoctors ? doctorsApi.getDoctors() : []).map(d =>
-            `<option value="${utils ? utils.escapeHtml(d.name) : d.name}" ${pr.performedBy === d.name ? 'selected' : ''}>${utils ? utils.escapeHtml(d.name) : d.name}</option>`
-        ).join('')}
+          <option value="">¿Quién atendió?</option>
         </select>
         <div style="margin-top:12px">
           <button class="btn primary" id="btn-save-proc-edit">Guardar</button>

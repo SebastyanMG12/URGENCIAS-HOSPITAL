@@ -41,7 +41,7 @@ function setBusy(isBusy) {
 }
 
 
-function saveSessionSnapshot(user, role) {
+async function saveSessionSnapshot(user, role, idToken) {
     const snapshot = {
         uid: user.uid,
         email: user.email || "",
@@ -51,6 +51,17 @@ function saveSessionSnapshot(user, role) {
         loggedAt: new Date().toISOString()
     };
     sessionStorage.setItem("eseb_staff_session", JSON.stringify(snapshot));
+
+    // Registrar/actualizar el usuario en PostgreSQL
+    try {
+        await fetch("http://localhost:8000/auth/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id_token: idToken })
+        });
+    } catch (e) {
+        console.warn("No se pudo sincronizar con el backend:", e.message);
+    }
 }
 
 
@@ -116,7 +127,7 @@ async function handleLogin() {
                 return;
             }
 
-            saveSessionSnapshot(result.user, role);
+            await saveSessionSnapshot(result.user, role, await result.user.getIdToken(false));
             setMessage("Acceso validado. Redirigiendo...", "success");
             redirectByRole(role);
 
@@ -156,7 +167,7 @@ onAuthStateChanged(auth, async (user) => {
             return;
         }
 
-        saveSessionSnapshot(user, role);
+        await saveSessionSnapshot(user, role, await user.getIdToken(false));
         setMessage("Sesión detectada. Redirigiendo...", "success");
         redirectByRole(role);
 
@@ -181,7 +192,7 @@ getRedirectResult(auth)
             return;
         }
 
-        saveSessionSnapshot(result.user, role);
+        await saveSessionSnapshot(result.user, role, await result.user.getIdToken(false));
         setMessage("Acceso validado. Redirigiendo...", "success");
         redirectByRole(role);
     })

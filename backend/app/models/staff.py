@@ -19,5 +19,5 @@ class Staff(Base):
     role: Mapped[str] = mapped_column(String(20), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
-    patients: Mapped[list["Patient"]] = relationship("Patient", foreign_keys="Patient.attending_id", back_populates=None)
+    patients: Mapped[list["Patient"]] = relationship("Patient", foreign_keys="[Patient.attending_id]", primaryjoin="Staff.id == Patient.attending_id", back_populates=None)
     audit_logs: Mapped[list["AuditLog"]] = relationship("AuditLog", back_populates="staff", cascade="all, delete-orphan")

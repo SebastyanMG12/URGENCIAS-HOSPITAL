@@ -38,9 +38,9 @@ class Patient(Base):
     admitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     discharged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    assigned_room: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    assigned_bed: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    attending_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("staff.id", ondelete="SET NULL"), nullable=True)
+    assigned_room: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    assigned_bed: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    attending_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     attending_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
     share_with_companion: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

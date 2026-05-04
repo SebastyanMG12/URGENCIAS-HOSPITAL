@@ -1,0 +1,10 @@
+cd "C:\Users\PC DE SEBASTIAN\Desktop\PROYECTOS VSCODE\HOSPITAL-2.0\backend"
+venv\Scripts\activate
+uvicorn app.main:app --reload --port 8000
+
+Comandos para documentacion 
+cd "C:\Users\PC DE SEBASTIAN\Desktop\PROYECTOS VSCODE\HOSPITAL-2.0\docs-proyecto"
+mkdocs serve --dev-addr=127.0.0.1:8001
+
+Asignar rol BD 
+UPDATE staff SET role = 'admin' WHERE email = 'correo@ejemplo.com';

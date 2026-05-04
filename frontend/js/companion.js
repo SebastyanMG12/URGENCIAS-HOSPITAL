@@ -16,8 +16,9 @@
 
     function buildStatusHtml(p) {
         if (!p) return `<div class="kv"><strong>Estado</strong><div class="muted">-</div></div>`;
-        if (p.dischargedAt) {
-            return `<div class="kv"><strong>Estado</strong><div class="muted">Egresado · ${new Date(p.dischargedAt).toLocaleString()}</div></div>`;
+        const discharged = p.discharged_at || p.dischargedAt;
+        if (discharged) {
+            return `<div class="kv"><strong>Estado</strong><div class="muted">Egresado · ${new Date(discharged).toLocaleString()}</div></div>`;
         } else {
             return `<div class="kv"><strong>Estado</strong><div class="muted">Activo</div></div>`;
         }
@@ -35,7 +36,7 @@
             const notFoundHtml = `<div class="ig-content"><h3>Código no encontrado</h3><p class="muted">El código ingresado no corresponde a ningún paciente.</p></div>`;
             if (modals && modals.openCompanionContent) modals.openCompanionContent(notFoundHtml);
             return;
-        } 
+        }
         currentShownCode = code;
 
         if (!p) {
@@ -51,16 +52,20 @@
         <div class="kv"><strong>Motivo</strong><div class="muted">${utils ? utils.escapeHtml(p.reason || '-') : (p.reason || '-')}</div></div>
         <div class="kv"><strong>Teléfono</strong><div class="muted">${utils ? utils.escapeHtml(p.phone || '-') : (p.phone || '-')}</div></div>
         ${buildStatusHtml(p)}
-        <div class="kv"><strong>Llegada</strong><div class="muted">${p.arrived ? 'Confirmada ' + new Date(p.arrivedAt).toLocaleString() : 'Pendiente'}</div></div>
-        <div class="kv"><strong>Hab / Camilla</strong><div class="muted">${utils ? utils.escapeHtml(p.assignedRoom || '-') : (p.assignedRoom || '-')} / ${utils ? utils.escapeHtml(p.assignedBed || '-') : (p.assignedBed || '-')}</div></div>
-        <div class="kv"><strong>Atiende</strong><div class="muted">${utils ? utils.escapeHtml(p.attending || '-') : (p.attending || '-')}</div></div>`;
+        <div class="kv"><strong>Llegada</strong><div class="muted">${p.arrived ? 'Confirmada ' + new Date(p.arrived_at || p.arrivedAt).toLocaleString() : 'Pendiente'}</div></div>
+        <div class="kv"><strong>Hab / Camilla</strong><div class="muted">${utils ? utils.escapeHtml(p.assigned_room || p.assignedRoom || '-') : (p.assigned_room || p.assignedRoom || '-')} / ${utils ? utils.escapeHtml(p.assigned_bed || p.assignedBed || '-') : (p.assigned_bed || p.assignedBed || '-')}</div></div>
+        <div class="kv"><strong>Atiende</strong><div class="muted">${utils ? utils.escapeHtml(p.attending_name || p.attending || '-') : (p.attending_name || p.attending || '-')}</div></div>`;
 
         // Companion info (nuevo — mostrar datos del acompañante al visitante)
-        html += `<div class="kv"><strong>Acompañante</strong><div class="muted">${p.companionName ? `${utils ? utils.escapeHtml(p.companionName) : p.companionName} · ${utils ? utils.escapeHtml(p.companionRelation || '') : (p.companionRelation || '')} · ${utils ? utils.escapeHtml(p.companionPhone || '') : (p.companionPhone || '')}` : '-'}</div></div>`;
-
+        const cName = p.companion_name || p.companionName || null;
+        const cRel = p.companion_relation || p.companionRelation || '';
+        const cPhone = p.companion_phone || p.companionPhone || '';
+        html += `<div class="kv"><strong>Acompañante</strong><div class="muted">${cName ? `${utils ? utils.escapeHtml(cName) : cName} · ${utils ? utils.escapeHtml(cRel) : cRel} · ${utils ? utils.escapeHtml(cPhone) : cPhone}` : '-'}</div></div>`;
         // Diagnóstico final — solo mostrar si el doctor permitió compartir (shareDiagnosis)
-        if (p.shareDiagnosis) {
-            html += `<div class="kv"><strong>Diagnóstico final</strong><div class="muted">${p.finalDiagnosis ? (utils ? utils.escapeHtml(p.finalDiagnosis) : p.finalDiagnosis) : 'Sin diagnóstico registrado'}</div></div>`;
+        const shareDx = p.share_diagnosis || p.shareDiagnosis || false;
+        const finalDx = p.final_diagnosis || p.finalDiagnosis || null;
+        if (shareDx) {
+            html += `<div class="kv"><strong>Diagnóstico final</strong><div class="muted">${finalDx ? (utils ? utils.escapeHtml(finalDx) : finalDx) : 'Sin diagnóstico registrado'}</div></div>`;
         } else {
             html += `<div class="kv"><strong>Diagnóstico final</strong><div class="muted">No disponible</div></div>`;
         }
@@ -68,14 +73,18 @@
         html += `</div>
       <div class="timeline"><h4>Procedimientos (tiempo real)</h4>`;
 
-        if (!p.shareWithCompanion) {
+        const shareProc = p.share_with_companion || p.shareWithCompanion || false;
+        if (!shareProc) {
             html += `<div class="muted">Los procedimientos son privados para este paciente. No están disponibles para acompañantes.</div>`;
         } else {
             if (!p.procedures || p.procedures.length === 0) {
                 html += `<div class="muted">Sin procedimientos registrados</div>`;
             } else {
                 p.procedures.forEach(pr => {
-                    html += `<div class="proc"><div><strong>${utils ? utils.escapeHtml(pr.desc) : pr.desc}</strong><br><small>${utils ? utils.escapeHtml(pr.performedBy || '---') : (pr.performedBy || '---')} · ${new Date(pr.time).toLocaleString()}</small></div></div>`;
+                    const desc = pr.description || pr.desc || '';
+                    const performedBy = pr.performed_by || pr.performedBy || '---';
+                    const time = pr.created_at || pr.time || null;
+                    html += `<div class="proc"><div><strong>${utils ? utils.escapeHtml(desc) : desc}</strong><br><small>${utils ? utils.escapeHtml(performedBy) : performedBy} · ${time ? new Date(time).toLocaleString() : '-'}</small></div></div>`;
                 });
             }
         }
@@ -112,55 +121,25 @@
     }
 
     // Real-time updates: si el modal companion grande está abierto mostrando ese código, refrescarlo
-    window.addEventListener('eseb:patient:updated', (ev) => {
-        try {
-            if (!currentShownCode) return;
-            // si modals no tiene propiedad que indique si está abierto, asumimos que si currentShownCode existe queremos refrescar
-            const updated = ev && ev.detail;
-            if (updated && updated.publicCode && updated.publicCode === currentShownCode) {
-                showCompanionInModal(currentShownCode);
-            } else {
-                const p = patientsApi && patientsApi.findByPublicCode ? patientsApi.findByPublicCode(currentShownCode) : (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.publicCode === currentShownCode) : null);
-                if (p) showCompanionInModal(currentShownCode);
-            }
-        } catch (e) { /* safe */ }
+    async function refreshCompanionIfOpen() {
+        if (!currentShownCode) return;
+        await showCompanionInModal(currentShownCode);
+    }
+
+    window.addEventListener('eseb:patient:updated', async () => {
+        try { await refreshCompanionIfOpen(); } catch (e) { /* safe */ }
     });
 
-    window.addEventListener('eseb:procedure:added', (ev) => {
-        try {
-            if (!currentShownCode) return;
-            const detail = ev && ev.detail;
-            if (detail && detail.patientId) {
-                const p = patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === detail.patientId) : null;
-                if (p && p.publicCode === currentShownCode) showCompanionInModal(currentShownCode);
-            } else {
-                const p = patientsApi && patientsApi.findByPublicCode ? patientsApi.findByPublicCode(currentShownCode) : (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.publicCode === currentShownCode) : null);
-                if (p) showCompanionInModal(currentShownCode);
-            }
-        } catch (e) { /* safe */ }
+    window.addEventListener('eseb:procedure:added', async () => {
+        try { await refreshCompanionIfOpen(); } catch (e) { /* safe */ }
     });
 
-    window.addEventListener('eseb:procedure:edited', (ev) => {
-        try {
-            if (!currentShownCode) return;
-            const detail = ev && ev.detail;
-            if (detail && detail.patientId) {
-                const p = patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === detail.patientId) : null;
-                if (p && p.publicCode === currentShownCode) showCompanionInModal(currentShownCode);
-            } else {
-                const p = patientsApi && patientsApi.findByPublicCode ? patientsApi.findByPublicCode(currentShownCode) : (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.publicCode === currentShownCode) : null);
-                if (p) showCompanionInModal(currentShownCode);
-            }
-        } catch (e) { /* safe */ }
+    window.addEventListener('eseb:procedure:edited', async () => {
+        try { await refreshCompanionIfOpen(); } catch (e) { /* safe */ }
     });
 
-    // cross-tab storage change
-    window.addEventListener('eseb:storage', () => {
-        try {
-            if (!currentShownCode) return;
-            const p = patientsApi && patientsApi.findByPublicCode ? patientsApi.findByPublicCode(currentShownCode) : (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.publicCode === currentShownCode) : null);
-            if (p) showCompanionInModal(currentShownCode);
-        } catch (e) { /* safe */ }
+    window.addEventListener('eseb:storage', async () => {
+        try { await refreshCompanionIfOpen(); } catch (e) { /* safe */ }
     });
 
     window.eseb = window.eseb || {};

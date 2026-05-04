@@ -1,6 +1,22 @@
+# Entorno virtual
+backend/venv/
+backend/.venv/
+
+# Variables de entorno y credenciales
+backend/.env
 backend/firebase-service-account.json
-.env
+
+# Python cache
 __pycache__/
 *.pyc
-.venv/
-venv/
+*.pyo
+
+# Alembic (solo ignorar el cache, no las versiones)
+backend/alembic/__pycache__/
+
+# VS Code
+.vscode/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db

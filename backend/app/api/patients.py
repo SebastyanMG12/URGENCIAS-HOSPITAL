@@ -263,11 +263,26 @@ async def update_patient(
     for field, value in update_data.items():
         setattr(patient, field, value)
 
+    # Si se marca egreso, liberar la cama en la tabla beds
+    if "discharged_at" in update_data and update_data["discharged_at"] is not None:
+        from app.models.rooms import Bed
+        await db.flush()
+        bed_result = await db.execute(
+            select(Bed).where(Bed.occupied_by == patient_id)
+        )
+        bed = bed_result.scalar_one_or_none()
+        if bed:
+            bed.occupied_by = None
+
+    audit_details = {
+    k: v.isoformat() if hasattr(v, 'isoformat') else v
+    for k, v in update_data.items()
+}
     log = AuditLog(
         action="update_patient",
         patient_id=patient.id,
         staff_id=current_user.id,
-        details=update_data,
+        details=audit_details,
     )
     db.add(log)
     await db.commit()
