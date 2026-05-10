@@ -2,7 +2,7 @@
 backend/venv/
 backend/.venv/
 
-# Variables de entorno y credenciales
+# Variables de entorno y credenciales SENSIBLES
 backend/.env
 backend/firebase-service-account.json
 
@@ -10,8 +10,9 @@ backend/firebase-service-account.json
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
 
-# Alembic (solo ignorar el cache, no las versiones)
+# Alembic cache
 backend/alembic/__pycache__/
 
 # VS Code
@@ -20,3 +21,6 @@ backend/alembic/__pycache__/
 # Sistema operativo
 .DS_Store
 Thumbs.db
+
+# MkDocs site generado
+docs-proyecto/site/

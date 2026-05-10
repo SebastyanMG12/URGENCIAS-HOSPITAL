@@ -664,11 +664,26 @@
             const api = window.eseb && window.eseb.api;
             if (!api) return;
 
-            // Obtener el bed_id actual del paciente para liberarlo
+            // Paso 1: obtener el bed_id actual antes de modificar nada
             const patients = await api.getAllPatients();
             const current = patients.find(p => p.id === patientId);
+            const currentBedLabel = current ? (current.assigned_bed || null) : null;
 
-            // Marcar egreso y limpiar asignaciones
+            // Paso 2: liberar la cama en la tabla beds ANTES del egreso
+            if (currentBedLabel) {
+                // Buscar el bed por label para obtener su UUID
+                const rooms = await api.getRooms();
+                let bedId = null;
+                for (const room of rooms) {
+                    const bed = room.beds.find(b => b.label === currentBedLabel);
+                    if (bed) { bedId = bed.id; break; }
+                }
+                if (bedId) {
+                    try { await api.releaseBed(bedId); } catch (e) { /* safe */ }
+                }
+            }
+
+            // Paso 3: marcar egreso y limpiar asignaciones
             await api.updatePatient(patientId, {
                 discharged_at: new Date().toISOString(),
                 attending_name: null,
@@ -865,6 +880,172 @@
         if (modals && modals.openModalLarge) modals.openModalLarge(html);
     }
 
+    async function openGestionPanel() {
+        if (!patientDetailEl) return;
+
+        async function renderGestion() {
+            let rooms = [];
+            let doctors = [];
+            try {
+                const api = window.eseb && window.eseb.api;
+                if (api) {
+                    [rooms, doctors] = await Promise.all([api.getRooms(), api.getDoctors()]);
+                }
+            } catch (e) {
+                console.warn('Error cargando gestión:', e.message);
+            }
+
+            let html = `<div style="display:flex;gap:32px;flex-wrap:wrap;padding:8px">`;
+
+            // ── Sección Habitaciones ──
+            html += `<div style="flex:1;min-width:300px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <h3 style="margin:0;color:var(--primary-2)">Habitaciones y Camillas</h3>
+            <button class="btn primary" id="btn-add-room" style="font-size:13px">+ Habitación</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px" id="rooms-list">`;
+
+            rooms.forEach(room => {
+                const totalBeds = room.beds.length;
+                const occupiedBeds = room.beds.filter(b => b.occupied_by).length;
+                const freeBeds = totalBeds - occupiedBeds;
+                html += `<div class="detail-card" style="padding:12px">
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                    <div>
+                        <strong>Hab. ${utils ? utils.escapeHtml(room.room_label) : room.room_label}</strong>
+                        <div class="muted" style="font-size:12px;margin-top:2px">
+                            ${totalBeds} camas · <span style="color:#22c55e">${freeBeds} libre(s)</span> · <span style="color:#ef4444">${occupiedBeds} ocupada(s)</span>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn" style="font-size:12px" data-add-bed="${utils ? utils.escapeHtml(room.id) : room.id}" data-room-label="${utils ? utils.escapeHtml(room.room_label) : room.room_label}">+ Cama</button>
+                        <button class="btn ghost" style="font-size:12px;color:#ef4444" data-deactivate-room="${utils ? utils.escapeHtml(room.id) : room.id}" data-room-label="${utils ? utils.escapeHtml(room.room_label) : room.room_label}">Desactivar</button>
+                    </div>
+                </div>
+                <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">`;
+                room.beds.forEach(b => {
+                    const isOccupied = !!b.occupied_by;
+                    html += `<span style="padding:4px 8px;border-radius:6px;font-size:12px;background:${isOccupied ? '#fee2e2' : '#dcfce7'};color:${isOccupied ? '#dc2626' : '#16a34a'}">
+                    ${utils ? utils.escapeHtml(b.label) : b.label} ${isOccupied ? '🔴' : '🟢'}
+                </span>`;
+                });
+                html += `</div></div>`;
+            });
+
+            if (rooms.length === 0) html += `<div class="muted">No hay habitaciones registradas</div>`;
+            html += `</div></div>`;
+
+            // ── Sección Médicos ──
+            html += `<div style="flex:1;min-width:300px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <h3 style="margin:0;color:var(--primary-2)">Personal Médico</h3>
+            <button class="btn primary" id="btn-add-doctor" style="font-size:13px">+ Médico</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px" id="doctors-list">`;
+
+            doctors.forEach(doc => {
+                html += `<div class="detail-card" style="padding:12px">
+                <div style="display:flex;align-items:center;justify-content:space-between">
+                    <div>
+                        <strong>${utils ? utils.escapeHtml(doc.name) : doc.name}</strong>
+                        <div class="muted" style="font-size:12px;margin-top:2px">
+                            Atendiendo: <strong>${doc.patient_count || 0}</strong> paciente(s) activo(s)
+                        </div>
+                    </div>
+                    <button class="btn ghost" style="font-size:12px;color:#ef4444" data-deactivate-doctor="${utils ? utils.escapeHtml(doc.id) : doc.id}" data-doctor-name="${utils ? utils.escapeHtml(doc.name) : doc.name}">Desactivar</button>
+                </div>
+            </div>`;
+            });
+
+            if (doctors.length === 0) html += `<div class="muted">No hay médicos registrados</div>`;
+            html += `</div></div>`;
+            html += `</div>`;
+
+            if (patientDetailEl) patientDetailEl.innerHTML = html;
+
+            // ── Handlers ──
+            const api = window.eseb && window.eseb.api;
+
+            // Agregar habitación
+            const btnAddRoom = document.getElementById('btn-add-room');
+            if (btnAddRoom) {
+                btnAddRoom.addEventListener('click', async () => {
+                    const label = prompt('Número o nombre de la habitación (ej: 206):');
+                    if (!label || !label.trim()) return;
+                    try {
+                        await api.createRoom(label.trim());
+                        await renderGestion();
+                    } catch (e) {
+                        alert('Error creando habitación: ' + e.message);
+                    }
+                });
+            }
+
+            // Agregar cama
+            document.querySelectorAll('[data-add-bed]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const roomId = btn.getAttribute('data-add-bed');
+                    const roomLabel = btn.getAttribute('data-room-label');
+                    const bedLabel = prompt(`Nombre de la cama para Hab. ${roomLabel} (ej: ${roomLabel}-C):`);
+                    if (!bedLabel || !bedLabel.trim()) return;
+                    try {
+                        await api.addBedToRoom(roomId, bedLabel.trim());
+                        await renderGestion();
+                    } catch (e) {
+                        alert('Error agregando cama: ' + e.message);
+                    }
+                });
+            });
+
+            // Desactivar habitación
+            document.querySelectorAll('[data-deactivate-room]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const roomId = btn.getAttribute('data-deactivate-room');
+                    const roomLabel = btn.getAttribute('data-room-label');
+                    if (!confirm(`¿Desactivar la habitación ${roomLabel}? Las camas ocupadas no se liberarán automáticamente.`)) return;
+                    try {
+                        await api.deactivateRoom(roomId);
+                        await renderGestion();
+                    } catch (e) {
+                        alert('Error desactivando habitación: ' + e.message);
+                    }
+                });
+            });
+
+            // Agregar médico
+            const btnAddDoctor = document.getElementById('btn-add-doctor');
+            if (btnAddDoctor) {
+                btnAddDoctor.addEventListener('click', async () => {
+                    const name = prompt('Nombre completo del médico:');
+                    if (!name || !name.trim()) return;
+                    try {
+                        await api.createDoctor(name.trim());
+                        await renderGestion();
+                    } catch (e) {
+                        alert('Error agregando médico: ' + e.message);
+                    }
+                });
+            }
+
+            // Desactivar médico
+            document.querySelectorAll('[data-deactivate-doctor]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const doctorId = btn.getAttribute('data-deactivate-doctor');
+                    const doctorName = btn.getAttribute('data-doctor-name');
+                    if (!confirm(`¿Desactivar a ${doctorName}? Ya no aparecerá disponible para nuevas asignaciones.`)) return;
+                    try {
+                        await api.deactivateDoctor(doctorId);
+                        await renderGestion();
+                    } catch (e) {
+                        alert('Error desactivando médico: ' + e.message);
+                    }
+                });
+            });
+        }
+
+        await renderGestion();
+    }
+
     async function openAdminAuditModal(patientId) {
         let logs = [];
         try {
@@ -949,7 +1130,8 @@
 
         if (btnViewActive) btnViewActive.addEventListener('click', () => setListFilter('active'));
         if (btnViewEgresados) btnViewEgresados.addEventListener('click', () => setListFilter('discharged'));
-
+        const btnViewGestion = document.getElementById('btn-view-gestion');
+        if (btnViewGestion) btnViewGestion.addEventListener('click', () => openGestionPanel());
         // Listen to domain events to refresh UI
         window.addEventListener('eseb:patient:created', async () => {
             await renderPatientList(searchInput ? searchInput.value.trim() : '');

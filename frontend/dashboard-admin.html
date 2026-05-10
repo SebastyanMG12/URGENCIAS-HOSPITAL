@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Hospital Ubaté - Panel Administración</title>
+    <title>Hospital de Ubaté - Panel Administración</title>
     <link rel="stylesheet" href="style.css" />
 </head>
 
@@ -23,6 +23,7 @@
                 <div class="panel-actions">
                     <button class="btn green" id="btn-view-active">Activos</button>
                     <button class="btn red" id="btn-view-egresados">Egresados</button>
+                    <button class="btn primary" id="btn-view-gestion">Gestión</button>
                     <button class="btn ghost" id="btn-logout">Cerrar sesión</button>
                 </div>
             </header>
@@ -49,8 +50,8 @@
             <div class="ig-content-large" id="modal-view-content"></div>
         </div>
     </div>
-    
-<script type="module">
+
+    <script type="module">
         import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
         import { getAuth, signOut } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-auth.js";
         import { firebaseConfig } from "./js/firebase-config.js";

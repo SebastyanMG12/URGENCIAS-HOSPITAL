@@ -62,6 +62,7 @@ async def create_room(
     db.add(room)
     await db.commit()
     await db.refresh(room)
+    await db.refresh(room, ["beds"])
     log = AuditLog(action="create_room", staff_id=current_user.id, details={"room_label": body.room_label})
     db.add(log)
     await db.commit()
@@ -142,6 +143,22 @@ async def deactivate_room(
     room = result.scalar_one_or_none()
     if not room:
         raise HTTPException(status_code=404, detail="Habitación no encontrada.")
+
+    # Desactivar la habitación
     room.active = False
+
+    # Desactivar todas las camas de esa habitación
+    beds_result = await db.execute(select(Bed).where(Bed.room_id == room_id))
+    beds = beds_result.scalars().all()
+    for bed in beds:
+        bed.active = False
+        bed.occupied_by = None  # Liberar cama si estaba ocupada
+
+    log = AuditLog(
+        action="deactivate_room",
+        staff_id=current_user.id,
+        details={"room_id": room_id, "room_label": room.room_label, "beds_deactivated": len(beds)}
+    )
+    db.add(log)
     await db.commit()
-    return {"message": "Habitación desactivada correctamente."}
+    return {"message": f"Habitación desactivada correctamente. {len(beds)} cama(s) desactivadas."}

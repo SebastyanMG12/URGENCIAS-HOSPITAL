@@ -159,6 +159,43 @@ async function getDoctors() {
   return apiFetchAuth("/doctors/");
 }
 
+// ── Admin: Rooms ───────────────────────────────────────
+
+async function createRoom(roomLabel) {
+  return apiFetchAuth("/rooms/", {
+    method: "POST",
+    body: JSON.stringify({ room_label: roomLabel }),
+  });
+}
+
+async function addBedToRoom(roomId, label) {
+  return apiFetchAuth(`/rooms/${roomId}/beds`, {
+    method: "POST",
+    body: JSON.stringify({ label }),
+  });
+}
+
+async function deactivateRoom(roomId) {
+  return apiFetchAuth(`/rooms/${roomId}`, {
+    method: "DELETE",
+  });
+}
+
+// ── Admin: Doctors ─────────────────────────────────────
+
+async function createDoctor(name) {
+  return apiFetchAuth("/doctors/", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+}
+
+async function deactivateDoctor(doctorId) {
+  return apiFetchAuth(`/doctors/${doctorId}`, {
+    method: "DELETE",
+  });
+}
+
 window.eseb = window.eseb || {};
 window.eseb.api = {
   registerPatient,
@@ -176,4 +213,9 @@ window.eseb.api = {
   assignBed,
   releaseBed,
   getDoctors,
+  createRoom,
+  addBedToRoom,
+  deactivateRoom,
+  createDoctor,
+  deactivateDoctor,
 };
