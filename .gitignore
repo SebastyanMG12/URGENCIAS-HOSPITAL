@@ -24,3 +24,6 @@ Thumbs.db
 
 # MkDocs site generado
 docs-proyecto/site/
+
+# Firebase config
+frontend/js/firebase-config.js
