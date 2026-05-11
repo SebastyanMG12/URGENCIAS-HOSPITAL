@@ -64,13 +64,28 @@
     /* ---------------------------
        Render list (left column)
        --------------------------- */
-    async function renderPatientList(textFilter = '') {
+    // Caché local para evitar llamadas repetidas a la API
+    let _patientsCache = null;
+    let _patientsCacheTime = 0;
+    const CACHE_TTL = 8000; // 8 segundos
+
+    async function getPatientsCached(forceRefresh = false) {
+        const now = Date.now();
+        if (!forceRefresh && _patientsCache && (now - _patientsCacheTime) < CACHE_TTL) {
+            return _patientsCache;
+        }
+        const api = window.eseb && window.eseb.api;
+        if (!api) return [];
+        const data = await api.getAllPatients();
+        _patientsCache = data;
+        _patientsCacheTime = now;
+        return data;
+    }
+
+    async function renderPatientList(textFilter = '', forceRefresh = true) {
         let all = [];
         try {
-            const api = window.eseb && window.eseb.api;
-            if (api) {
-                all = await api.getAllPatients();
-            }
+            all = await getPatientsCached(forceRefresh);
         } catch (err) {
             console.warn('Error cargando pacientes:', err.message);
         }
@@ -144,15 +159,13 @@
         if (!raw) {
             try {
                 const api = window.eseb && window.eseb.api;
-                if (api) {
-                    const list = await api.getAllPatients();
-                    raw = list.find(x => x.id === patientId) || null;
-                    if (raw) {
-                        try {
-                            const procs = await api.getProcedures(patientId);
-                            raw.procedures = procs;
-                        } catch (e) { raw.procedures = []; }
-                    }
+                const list = await getPatientsCached(false);
+                raw = list.find(x => x.id === patientId) || null;
+                if (raw && api) {
+                    try {
+                        const procs = await api.getProcedures(patientId);
+                        raw.procedures = procs;
+                    } catch (e) { raw.procedures = []; }
                 }
             } catch (e) { /* safe */ }
         }
@@ -373,7 +386,8 @@
                     alert('Información del acompañante guardada correctamente.');
                     window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: p.id } }));
                     await showPatientDetail(p.id);
-                    await renderPatientList(searchInput ? searchInput.value.trim() : '');
+                    _patientsCache = null;
+                    await renderPatientList(searchInput ? searchInput.value.trim() : '', true);
                 } catch (e) {
                     alert('Error guardando acompañante: ' + e.message);
                 }
@@ -403,7 +417,8 @@
                     alert('Diagnóstico final guardado correctamente.');
                     window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: p.id } }));
                     await showPatientDetail(p.id);
-                    await renderPatientList(searchInput ? searchInput.value.trim() : '');
+                    _patientsCache = null;
+                    await renderPatientList(searchInput ? searchInput.value.trim() : '', true);
                 } catch (e) {
                     alert('Error guardando diagnóstico: ' + e.message);
                 }
@@ -476,7 +491,8 @@
                     if (descEl) descEl.value = '';
                     if (byEl) byEl.value = '';
                     window.dispatchEvent(new CustomEvent('eseb:procedure:added', { detail: { patientId: p.id } }));
-                    await renderPatientList(searchInput ? searchInput.value.trim() : '');
+                    _patientsCache = null;
+                    await renderPatientList(searchInput ? searchInput.value.trim() : '', true);
                     await showPatientDetail(p.id);
                 } catch (e) {
                     alert('Error agregando procedimiento: ' + e.message);
@@ -549,7 +565,8 @@
                             });
                         }
                         window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: patientId } }));
-                        await renderPatientList(searchInput ? searchInput.value.trim() : '');
+                        _patientsCache = null;
+                        await renderPatientList(searchInput ? searchInput.value.trim() : '', true);
                         await showPatientDetail(patientId);
                         if (modals && modals.closeModalLarge) modals.closeModalLarge();
                     } catch (err) {
@@ -569,7 +586,8 @@
             const api = window.eseb && window.eseb.api;
             if (api) await api.updatePatient(patientId, { arrived: true, arrived_at: new Date().toISOString() });
             window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: patientId } }));
-            await renderPatientList(searchInput ? searchInput.value.trim() : '');
+            _patientsCache = null;
+            await renderPatientList(searchInput ? searchInput.value.trim() : '', true);
             await showPatientDetail(patientId);
             alert('Llegada confirmada correctamente.');
         } catch (e) {
@@ -578,9 +596,10 @@
     }
 
     async function openAssignDoctorModal(patientId) {
-        const p = (patientsApi && patientsApi.getPatients ? patientsApi.getPatients().find(x => x.id === patientId) : null);
-        // guard
-        if (p && p.dischargedAt && auth && auth.currentSession && auth.currentSession().role === 'medico') {
+        // guard: verificar si el paciente está egresado
+        const cachedList = _patientsCache || [];
+        const p = cachedList.find(x => x.id === patientId);
+        if (p && p.discharged_at && auth && auth.currentSession && auth.currentSession().role === 'medico') {
             showNotEditableForDischarged();
             return;
         }
@@ -629,7 +648,8 @@
                         }
 
                         window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: patientId } }));
-                        await renderPatientList(searchInput ? searchInput.value.trim() : '');
+                        _patientsCache = null;
+                        await renderPatientList(searchInput ? searchInput.value.trim() : '', true);
                         await showPatientDetail(patientId);
                         window.removeEventListener('eseb:doctors:changed', doctorsChangedHandler);
                         if (modals && modals.closeModalLarge) modals.closeModalLarge();
@@ -651,7 +671,8 @@
             const api = window.eseb && window.eseb.api;
             if (api) await api.updatePatient(patientId, { admitted_at: new Date().toISOString() });
             window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: patientId } }));
-            await renderPatientList(searchInput ? searchInput.value.trim() : '');
+            _patientsCache = null;
+            await renderPatientList(searchInput ? searchInput.value.trim() : '', true);
             await showPatientDetail(patientId);
             alert('Ingreso marcado correctamente.');
         } catch (e) {
@@ -664,26 +685,7 @@
             const api = window.eseb && window.eseb.api;
             if (!api) return;
 
-            // Paso 1: obtener el bed_id actual antes de modificar nada
-            const patients = await api.getAllPatients();
-            const current = patients.find(p => p.id === patientId);
-            const currentBedLabel = current ? (current.assigned_bed || null) : null;
-
-            // Paso 2: liberar la cama en la tabla beds ANTES del egreso
-            if (currentBedLabel) {
-                // Buscar el bed por label para obtener su UUID
-                const rooms = await api.getRooms();
-                let bedId = null;
-                for (const room of rooms) {
-                    const bed = room.beds.find(b => b.label === currentBedLabel);
-                    if (bed) { bedId = bed.id; break; }
-                }
-                if (bedId) {
-                    try { await api.releaseBed(bedId); } catch (e) { /* safe */ }
-                }
-            }
-
-            // Paso 3: marcar egreso y limpiar asignaciones
+            // El backend libera la cama automáticamente al marcar discharged_at
             await api.updatePatient(patientId, {
                 discharged_at: new Date().toISOString(),
                 attending_name: null,
@@ -692,8 +694,9 @@
                 assigned_bed: null,
             });
 
-            window.dispatchEvent(new CustomEvent('eseb:patient:updated', { detail: { id: patientId } }));
-            await renderPatientList(searchInput ? searchInput.value.trim() : '');
+            // Invalidar caché y actualizar UI
+            _patientsCache = null;
+            await renderPatientList(searchInput ? searchInput.value.trim() : '', true);
             await showPatientDetail(patientId);
             alert('Egreso confirmado correctamente.');
         } catch (e) {
@@ -734,7 +737,8 @@
                     if (proceduresApi && proceduresApi.editProcedure) proceduresApi.editProcedure(patientId, procedureId, newDesc, newBy);
                     if (modals && modals.closeModalLarge) modals.closeModalLarge();
                     window.dispatchEvent(new CustomEvent('eseb:procedure:edited', { detail: { patientId } }));
-                    await renderPatientList(searchInput ? searchInput.value.trim() : '');
+                    _patientsCache = null;
+                    await renderPatientList(searchInput ? searchInput.value.trim() : '', true);
                     await showPatientDetail(patientId);
                 } catch (e) {
                     alert('Error editando procedimiento: ' + e.message);
@@ -1091,7 +1095,8 @@
     async function setListFilter(mode) {
         currentListFilter = mode;
         updateFilterButtonsUI();
-        await renderPatientList(searchInput ? searchInput.value.trim() : '');
+        _patientsCache = null;
+        await renderPatientList(searchInput ? searchInput.value.trim() : '', true);
         const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
         if (sess && sess.role === 'admin' && panelStaff && !panelStaff.classList.contains('hidden')) {
             await renderAdminTable();
@@ -1122,7 +1127,8 @@
         init._called = true;
 
         if (btnSearch) btnSearch.addEventListener('click', async () => {
-            await renderPatientList(searchInput ? searchInput.value.trim() : '');
+            _patientsCache = null;
+            await renderPatientList(searchInput ? searchInput.value.trim() : '', true);
         });
         if (searchInput) searchInput.addEventListener('keydown', async (e) => {
             if (e.key === 'Enter') await renderPatientList(searchInput.value.trim());
@@ -1134,24 +1140,30 @@
         if (btnViewGestion) btnViewGestion.addEventListener('click', () => openGestionPanel());
         // Listen to domain events to refresh UI
         window.addEventListener('eseb:patient:created', async () => {
-            await renderPatientList(searchInput ? searchInput.value.trim() : '');
+            _patientsCache = null;
+            await renderPatientList(searchInput ? searchInput.value.trim() : '', true);
             const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
             if (sess && sess.role === 'admin') await renderAdminTable();
         });
         window.addEventListener('eseb:patient:updated', async (ev) => {
-            await renderPatientList(searchInput ? searchInput.value.trim() : '');
+            _patientsCache = null;
+            await renderPatientList(searchInput ? searchInput.value.trim() : '', true);
             const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
             if (sess && sess.role === 'admin') await renderAdminTable();
         });
         window.addEventListener('eseb:procedure:added', async () => {
+            _patientsCache = null;
+            await renderPatientList(searchInput ? searchInput.value.trim() : '', true);
             const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
             if (sess && sess.role === 'admin') await renderAdminTable();
-            await renderPatientList(searchInput ? searchInput.value.trim() : '');
+            _patientsCache = null;
+            await renderPatientList(searchInput ? searchInput.value.trim() : '', true);
         });
         window.addEventListener('eseb:procedure:edited', async () => {
             const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
             if (sess && sess.role === 'admin') await renderAdminTable();
-            await renderPatientList(searchInput ? searchInput.value.trim() : '');
+            _patientsCache = null;
+            await renderPatientList(searchInput ? searchInput.value.trim() : '', true);
         });
         window.addEventListener('eseb:audit:changed', async () => {
             const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
@@ -1160,7 +1172,8 @@
 
         // storage event (cross-tab) refresh
         window.addEventListener('eseb:storage', async () => {
-            await renderPatientList(searchInput ? searchInput.value.trim() : '');
+            _patientsCache = null;
+            await renderPatientList(searchInput ? searchInput.value.trim() : '', true);
             const sess = window.eseb && window.eseb.auth ? window.eseb.auth.currentSession() : null;
             if (sess && sess.role === 'admin') await renderAdminTable();
         });
