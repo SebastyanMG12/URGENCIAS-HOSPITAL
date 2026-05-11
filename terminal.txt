@@ -1,3 +1,5 @@
+Comandos para inciar servidor y documentacion
+
 cd "C:\Users\PC DE SEBASTIAN\Desktop\PROYECTOS VSCODE\HOSPITAL-2.0\backend"
 venv\Scripts\activate
 uvicorn app.main:app --reload --port 8000
